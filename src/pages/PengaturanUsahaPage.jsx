@@ -6,21 +6,26 @@ import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 
 // Impor komponen
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button.jsx";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/ui/card.jsx";
+import { Input } from "@/components/ui/input.jsx";
+import { Label } from "@/components/ui/label.jsx";
+import { Checkbox } from "@/components/ui/checkbox.jsx";
+import { Textarea } from "@/components/ui/textarea.jsx";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs.jsx";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group.jsx";
+import { Separator } from "@/components/ui/separator.jsx";
 import VariableBadge from "@/components/VariableBadge";
 
 import {
@@ -32,7 +37,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog.jsx";
 
 function PengaturanUsahaPage() {
   const { authState, login } = useAuth();

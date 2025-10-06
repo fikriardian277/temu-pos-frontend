@@ -6,15 +6,15 @@ import Struk from "../components/struk/Struk";
 import { toast } from "sonner";
 
 // shadcn/ui
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button.jsx";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+} from "@/components/ui/card.jsx";
+import { Input } from "@/components/ui/input.jsx";
 import {
   Table,
   TableBody,
@@ -22,18 +22,18 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/ui/table.jsx";
+import { Badge } from "@/components/ui/badge.jsx";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog";
+} from "@/components/ui/dialog.jsx";
 import { Printer, MessageSquare, Loader2, History } from "lucide-react";
 
-import EmptyState from "@/components/ui/EmptyState";
+import EmptyState from "@/components/ui/EmptyState.jsx";
 
 function RiwayatPage() {
   const [transaksis, setTransaksis] = useState([]);

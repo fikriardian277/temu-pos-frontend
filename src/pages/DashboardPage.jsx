@@ -15,13 +15,14 @@ import {
 } from "recharts";
 
 // Impor komponen
+// Impor komponen
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@/components/ui/card";
+} from "@/components/ui/card.jsx";
 import {
   Table,
   TableHeader,
@@ -29,9 +30,9 @@ import {
   TableHead,
   TableBody,
   TableCell,
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/ui/table.jsx";
+import { Button } from "@/components/ui/button.jsx";
+import { Badge } from "@/components/ui/badge.jsx";
 import {
   ArrowUpRight,
   DollarSign,

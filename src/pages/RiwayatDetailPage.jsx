@@ -14,10 +14,10 @@ import {
   CardTitle,
   CardContent,
   CardDescription,
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+} from "@/components/ui/card.jsx";
+import { Button } from "@/components/ui/button.jsx";
 import { Loader2, Printer, MessageSquare } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge.jsx";
 
 const formatRupiah = (value) => {
   if (value == null) return "0";

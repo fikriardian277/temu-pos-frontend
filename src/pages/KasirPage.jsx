@@ -11,16 +11,16 @@ import PrintStrukButton from "../components/struk/PrintStrukButton"; // Jangan l
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { CheckCircle } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea";
+import { Textarea } from "@/components/ui/textarea.jsx";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button.jsx";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@/components/ui/card";
+} from "@/components/ui/card.jsx";
 import {
   Dialog,
   DialogContent,
@@ -28,9 +28,9 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/components/ui/dialog.jsx";
+import { Input } from "@/components/ui/input.jsx";
+import { Label } from "@/components/ui/label.jsx";
 
 function KasirPage() {
   const location = useLocation();

@@ -5,7 +5,7 @@ import api from "../api/axiosInstance";
 import { toast } from "sonner";
 
 // Impor komponen
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button.jsx";
 
 import {
   Card,
@@ -14,7 +14,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@/components/ui/card";
+} from "@/components/ui/card.jsx";
 import {
   Dialog,
   DialogContent,
@@ -22,17 +22,17 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Input } from "@/components/ui/input";
+} from "@/components/ui/dialog.jsx";
+import { Badge } from "@/components/ui/badge.jsx";
+import { Separator } from "@/components/ui/separator.jsx";
+import { Input } from "@/components/ui/input.jsx";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui/select.jsx";
 import {
   WashingMachine,
   Check,
@@ -42,7 +42,7 @@ import {
   ClipboardList,
 } from "lucide-react"; // Impor ikon baru
 
-import EmptyState from "@/components/ui/EmptyState";
+import EmptyState from "@/components/ui/EmptyState.jsx";
 
 // Komponen kartu transaksi (di-upgrade dengan logika baru)
 const TransaksiCard = ({ transaksi, onUpdateStatus, onSelesaikan }) => {

@@ -1,20 +1,18 @@
-// src/pages/CabangManagementPage.jsx
-
-import React, { useState, useEffect } from "react";
-import api from "../api/axiosInstance";
+import React, { useState, useEffect } from "react"; // <-- MEMPERBAIKI 'useState' & 'useEffect' is not defined
+import api from "../api/axiosInstance"; // <-- MEMPERBAIKI 'api' is not defined
 import { MoreHorizontal, PlusCircle } from "lucide-react";
 
-// Impor komponen-komponen dari shadcn/ui
-import { Button } from "@/components/ui/button";
+// Impor komponen-komponen dari shadcn/ui (dengan .jsx untuk Vercel)
+import { Button } from "@/components/ui/button.jsx";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/components/ui/card.jsx";
+import { Input } from "@/components/ui/input.jsx";
+import { Label } from "@/components/ui/label.jsx";
 import {
   Table,
   TableHeader,
@@ -22,13 +20,13 @@ import {
   TableHead,
   TableBody,
   TableCell,
-} from "@/components/ui/table";
+} from "@/components/ui/table.jsx";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/ui/dropdown-menu.jsx";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,7 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
+} from "@/components/ui/alert-dialog.jsx";
 import {
   Dialog,
   DialogContent,
@@ -47,7 +45,7 @@ import {
   DialogTitle,
   DialogFooter,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@/components/ui/dialog.jsx";
 
 function CabangManagementPage() {
   const [cabangs, setCabangs] = useState([]);

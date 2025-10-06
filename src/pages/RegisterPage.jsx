@@ -7,16 +7,16 @@ import { useAuth } from "@/context/AuthContext";
 import { Loader2 } from "lucide-react";
 
 // Impor komponen-komponen dari shadcn/ui
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button.jsx";
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+} from "@/components/ui/card.jsx";
+import { Input } from "@/components/ui/input.jsx";
+import { Label } from "@/components/ui/label.jsx";
 
 function RegisterPage() {
   const [formData, setFormData] = useState({

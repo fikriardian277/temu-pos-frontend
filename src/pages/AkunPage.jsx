@@ -7,18 +7,22 @@ import { useNavigate, Link } from "react-router-dom"; // <-- Import Link
 import { KeyRound, User, History, LogOut } from "lucide-react";
 
 // Impor komponen-komponen dari shadcn/ui
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/button.jsx";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/ui/card.jsx";
+import { Input } from "@/components/ui/input.jsx";
+import { Label } from "@/components/ui/label.jsx";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs.jsx";
 
 function InfoProfil({ initialData, onUpdate }) {
   const [formData, setFormData] = useState({
