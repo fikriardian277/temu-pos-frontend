@@ -7,7 +7,7 @@ import { useNavigate, Link } from "react-router-dom"; // <-- Import Link
 import { KeyRound, User, History, LogOut } from "lucide-react";
 
 // Impor komponen-komponen dari shadcn/ui
-import { Button } from "@/components/ui/button.jsx";
+import { Button } from "@/components/ui/Button.jsx";
 import {
   Card,
   CardContent,

@@ -3,7 +3,7 @@ import api from "../api/axiosInstance"; // <-- MEMPERBAIKI 'api' is not defined
 import { MoreHorizontal, PlusCircle } from "lucide-react";
 
 // Impor komponen-komponen dari shadcn/ui (dengan .jsx untuk Vercel)
-import { Button } from "@/components/ui/button.jsx";
+import { Button } from "@/components/ui/Button.jsx";
 import {
   Card,
   CardContent,

@@ -31,7 +31,7 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table.jsx";
-import { Button } from "@/components/ui/button.jsx";
+import { Button } from "@/components/ui/Button.jsx";
 import { Badge } from "@/components/ui/badge.jsx";
 import {
   ArrowUpRight,

@@ -13,7 +13,7 @@ import { toast } from "sonner";
 import { CheckCircle } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea.jsx";
 
-import { Button } from "@/components/ui/button.jsx";
+import { Button } from "@/components/ui/Button.jsx";
 import {
   Card,
   CardContent,

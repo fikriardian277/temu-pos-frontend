@@ -6,7 +6,7 @@ import { Plus, Trash2, Edit, MoreVertical } from "lucide-react";
 import { toast } from "sonner";
 
 // Impor semua komponen dari shadcn/ui
-import { Button } from "@/components/ui/button.jsx";
+import { Button } from "@/components/ui/Button.jsx";
 import {
   Card,
   CardContent,
