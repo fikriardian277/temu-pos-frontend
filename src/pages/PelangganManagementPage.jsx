@@ -4,9 +4,12 @@ import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../api/axiosInstance";
 import { useAuth } from "../context/AuthContext";
-import { MoreHorizontal, PlusCircle } from "lucide-react";
+import { toast } from "sonner";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
 
-// Impor semua komponen shadcn/ui yang kita butuhkan
+// Impor komponen
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -55,35 +58,58 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { MoreHorizontal, Edit, Trash2, Users2, PlusCircle } from "lucide-react";
+import EmptyState from "@/components/ui/EmptyState";
+
+// Blueprint validasi Zod
+const formSchema = z.object({
+  nama: z.string().min(3, { message: "Nama minimal 3 karakter." }),
+  nomor_hp: z
+    .string()
+    .regex(/^[0-9]+$/, { message: "Nomor HP hanya boleh berisi angka." })
+    .min(10, { message: "Nomor HP minimal 10 digit." }),
+  alamat: z.string().optional(),
+  id_cabang: z.string().optional(),
+});
 
 function PelangganManagementPage() {
   const navigate = useNavigate();
   const { authState } = useAuth();
   const [pelanggans, setPelanggans] = useState([]);
-  const [formData, setFormData] = useState({
-    nama: "",
-    nomor_hp: "",
-    id_cabang: "",
-  });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingPelanggan, setEditingPelanggan] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [cabangs, setCabangs] = useState([]);
 
+  const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingPelanggan, setEditingPelanggan] = useState(null);
+
+  // Inisialisasi React Hook Form untuk modal TAMBAH BARU
+  const form = useForm({
+    resolver: zodResolver(formSchema),
+    defaultValues: { nama: "", nomor_hp: "", alamat: "", id_cabang: "" },
+  });
+
+  // Logika fetching data yang stabil
   const fetchPelanggans = useCallback(async () => {
     try {
       setLoading(true);
       const response = await api.get(`/pelanggan?search=${searchTerm}`);
       setPelanggans(response.data);
     } catch (err) {
-      setError("Gagal mengambil data pelanggan.");
-      console.error(err);
+      toast.error("Gagal mengambil data pelanggan.");
     } finally {
       setLoading(false);
     }
@@ -92,155 +118,86 @@ function PelangganManagementPage() {
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchPelanggans();
-      // Ambil data cabang JIKA user adalah owner
-      if (authState.user?.role === "owner") {
-        api
-          .get("/cabang")
-          .then((response) => {
-            setCabangs(response.data);
-          })
-          .catch((err) => console.error("Gagal mengambil data cabang", err));
-      }
-    }, 300);
+    }, 500);
     return () => clearTimeout(timer);
-  }, [fetchPelanggans, authState.user?.role]);
+  }, [fetchPelanggans]);
 
-  const handleInputChange = (e) =>
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+  useEffect(() => {
+    if (authState.user?.role === "owner") {
+      api.get("/cabang").then((res) => setCabangs(res.data));
+    }
+  }, [authState.user?.role]);
 
-  const handleSelectChange = (name, value) =>
-    setFormData({ ...formData, [name]: value });
-
-  const handleEditInputChange = (e) =>
-    setEditingPelanggan({
-      ...editingPelanggan,
-      [e.target.name]: e.target.value,
-    });
-
-  const handleCreateSubmit = async (e) => {
-    e.preventDefault();
-    setMessage("");
-    setError("");
+  // Fungsi onSubmit untuk form tambah baru
+  async function onSubmit(data) {
     try {
-      await api.post("/pelanggan", formData);
-      setMessage(`Pelanggan "${formData.nama}" berhasil dibuat!`);
-      // [FIX] Reset semua field, termasuk id_cabang
-      setFormData({ nama: "", nomor_hp: "", id_cabang: "" });
+      // Jika owner tapi tidak pilih cabang, beri error
+      if (authState.user?.role === "owner" && !data.id_cabang) {
+        form.setError("id_cabang", {
+          type: "manual",
+          message: "Owner harus memilih cabang.",
+        });
+        return;
+      }
+      await api.post("/pelanggan", data);
+      toast.success(`Pelanggan "${data.nama}" berhasil dibuat!`);
+      setIsNewModalOpen(false);
       fetchPelanggans();
     } catch (err) {
-      setError(err.response?.data?.message || "Gagal membuat pelanggan.");
+      toast.error(err.response?.data?.message || "Gagal membuat pelanggan.");
     }
-  };
+  }
 
+  // Handler untuk form EDIT
+  const handleEditFormChange = (e) =>
+    setEditingPelanggan((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  const handleOpenEditModal = (pelanggan) => {
+    setEditingPelanggan(pelanggan);
+    setIsEditModalOpen(true);
+  };
   const handleUpdateSubmit = async (e) => {
     e.preventDefault();
-    setMessage("");
-    setError("");
+    if (!editingPelanggan) return;
     try {
       const response = await api.put(
         `/pelanggan/${editingPelanggan.id}`,
         editingPelanggan
       );
-      setMessage(response.data.message); // Ambil pesan dari respons backend agar lebih konsisten
-      setIsEditModalOpen(false); // <-- PERBAIKANNYA
+      toast.success(response.data.message);
+      setIsEditModalOpen(false);
       fetchPelanggans();
     } catch (err) {
-      setError(err.response?.data?.message || "Gagal mengupdate pelanggan.");
+      toast.error(err.response?.data?.message || "Gagal mengupdate pelanggan.");
     }
   };
 
   const handleDelete = async (id) => {
-    if (window.confirm("Yakin ingin menghapus pelanggan ini?")) {
-      setMessage("");
-      setError("");
-      try {
-        await api.delete(`/pelanggan/${id}`);
-        setMessage("Pelanggan berhasil dihapus.");
-        fetchPelanggans();
-      } catch (err) {
-        setError(err.response?.data?.message || "Gagal menghapus pelanggan.");
-      }
+    try {
+      await api.delete(`/pelanggan/${id}`);
+      toast.success("Pelanggan berhasil dihapus.");
+      fetchPelanggans();
+    } catch (err) {
+      toast.error(err.response?.data?.message || "Gagal menghapus pelanggan.");
     }
   };
 
-  const handleSelectAndGoToKasir = (pelanggan) => {
-    navigate("/kasir", { state: { pelangganTerpilih: pelanggan } });
-  };
-
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-6">Manajemen Pelanggan</h1>
-
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle>Tambah Pelanggan Baru</CardTitle>
-          <CardDescription>
-            Masukkan nama, nomor HP, dan cabang (jika Anda Owner).
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {message && <p className="text-green-500 text-sm mb-4">{message}</p>}
-          {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
-          <form
-            onSubmit={handleCreateSubmit}
-            className="flex flex-col md:flex-row gap-4 items-end"
-          >
-            <div className="flex-grow w-full">
-              <Label htmlFor="nama">Nama</Label>
-              <Input
-                id="nama"
-                name="nama"
-                value={formData.nama}
-                onChange={handleInputChange}
-                placeholder="Nama Pelanggan"
-                required
-              />
-            </div>
-            <div className="flex-grow w-full">
-              <Label htmlFor="nomor_hp">Nomor HP</Label>
-              <Input
-                id="nomor_hp"
-                name="nomor_hp"
-                value={formData.nomor_hp}
-                onChange={handleInputChange}
-                placeholder="Nomor HP"
-                required
-              />
-            </div>
-            {authState.user?.role === "owner" && (
-              <div className="flex-grow w-full">
-                <Label htmlFor="id_cabang">Cabang</Label>
-                <Select
-                  name="id_cabang"
-                  value={formData.id_cabang}
-                  onValueChange={(value) =>
-                    handleSelectChange(
-                      "id_cabang",
-                      value === "all" ? "" : value
-                    )
-                  }
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="-- Pilih Cabang --" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">-- Pilih Cabang --</SelectItem>
-                    {cabangs.map((cabang) => (
-                      <SelectItem key={cabang.id} value={String(cabang.id)}>
-                        {cabang.nama_cabang}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <Button type="submit" className="w-full md:w-auto">
-              <PlusCircle className="h-4 w-4 mr-2" /> Tambah
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">Manajemen Pelanggan</h1>
+        <Button
+          onClick={() => {
+            form.reset();
+            setIsNewModalOpen(true);
+          }}
+        >
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Tambah Pelanggan
+        </Button>
+      </div>
 
       <Card>
         <CardHeader>
@@ -248,137 +205,271 @@ function PelangganManagementPage() {
           <CardDescription>
             Cari dan kelola semua pelanggan terdaftar.
           </CardDescription>
-        </CardHeader>
-        <CardContent>
           <Input
             type="text"
             placeholder="Cari nama atau nomor HP..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="mb-4"
+            className="mt-4"
           />
-          <div className="rounded-md border">
-            <div className="overflow-x-auto">
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <p className="text-center py-10">Memuat data...</p>
+          ) : pelanggans.length > 0 ? (
+            <div className="rounded-md border">
               <Table>
-                <TableHeader>{/* ... Header Tabel ... */}</TableHeader>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nama</TableHead>
+                    <TableHead>Nomor HP</TableHead>
+                    <TableHead>Alamat</TableHead>
+                    <TableHead>Status</TableHead>
+                    {authState.user?.role === "owner" && (
+                      <TableHead>Cabang</TableHead>
+                    )}
+                    <TableHead className="text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
-                  {/* ... Isi Tabel ... */}
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="h-24 text-center">
-                        Memuat...
+                  {pelanggans.map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell className="font-medium text-primary">
+                        {p.nama}
+                      </TableCell>
+                      <TableCell>{p.nomor_hp}</TableCell>
+                      <TableCell className="text-muted-foreground max-w-[200px] truncate">
+                        {p.alamat || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            p.status_member === "Aktif"
+                              ? "success"
+                              : "secondary"
+                          }
+                        >
+                          {p.status_member}
+                        </Badge>
+                      </TableCell>
+                      {authState.user?.role === "owner" && (
+                        <TableCell>{p.Cabang?.nama_cabang || "N/A"}</TableCell>
+                      )}
+                      <TableCell className="text-right">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" className="h-8 w-8 p-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => handleOpenEditModal(p)}
+                            >
+                              <Edit className="mr-2 h-4 w-4" /> Edit
+                            </DropdownMenuItem>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem
+                                  onSelect={(e) => e.preventDefault()}
+                                  className="text-destructive focus:text-destructive"
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" /> Hapus
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Anda Yakin?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Aksi ini akan menghapus pelanggan secara
+                                    permanen.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Batal</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(p.id)}
+                                  >
+                                    Ya, Hapus
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </TableCell>
                     </TableRow>
-                  ) : (
-                    pelanggans.map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell
-                          className="font-medium text-primary cursor-pointer"
-                          onClick={() => handleSelectAndGoToKasir(p)}
-                        >
-                          {p.nama}
-                        </TableCell>
-                        <TableCell>{p.nomor_hp}</TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              p.status_member === "Aktif"
-                                ? "default"
-                                : "secondary"
-                            }
-                          >
-                            {p.status_member}
-                          </Badge>{" "}
-                          ({p.poin} Poin)
-                        </TableCell>
-                        {authState.user?.role === "owner" && (
-                          <TableCell>
-                            {p.Cabang?.nama_cabang || "N/A"}
-                          </TableCell>
-                        )}
-                        <TableCell className="text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" className="h-8 w-8 p-0">
-                                <MoreHorizontal className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {/* Edit hanya untuk owner & admin */}
-                              {(authState.user?.role === "owner" ||
-                                authState.user?.role === "admin") && (
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setEditingPelanggan(p);
-                                    setIsEditModalOpen(true);
-                                  }}
-                                >
-                                  Edit
-                                </DropdownMenuItem>
-                              )}
-
-                              {/* Hapus hanya untuk owner */}
-                              {authState.user?.role === "owner" && (
-                                <DropdownMenuItem
-                                  className="text-red-600"
-                                  onClick={() => handleDelete(p.id)}
-                                >
-                                  Hapus
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
+                  ))}
                 </TableBody>
               </Table>
             </div>
-          </div>
+          ) : (
+            <EmptyState
+              icon={<Users2 className="h-16 w-16" />}
+              title="Pelanggan Tidak Ditemukan"
+              description="Tidak ada pelanggan yang cocok dengan pencarian Anda, atau Anda belum mendaftarkan pelanggan sama sekali."
+            />
+          )}
         </CardContent>
       </Card>
 
-      {editingPelanggan && (
-        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Edit Pelanggan: {editingPelanggan.nama}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleUpdateSubmit} className="space-y-4 py-4">
-              <div>
-                <Label htmlFor="edit-nama">Nama Lengkap</Label>
-                <Input
-                  id="edit-nama"
-                  name="nama"
-                  value={editingPelanggan.nama || ""}
-                  onChange={handleEditInputChange}
+      <Dialog open={isNewModalOpen} onOpenChange={setIsNewModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Tambah Pelanggan Baru</DialogTitle>
+            <DialogDescription>
+              Masukkan detail pelanggan baru. Klik simpan jika sudah selesai.
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(onSubmit)}
+              className="space-y-4 py-4"
+            >
+              <FormField
+                control={form.control}
+                name="nama"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nama</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Nama Pelanggan"
+                        {...field}
+                        autoFocus
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="nomor_hp"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Nomor HP</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Nomor HP" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="alamat"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Alamat (Opsional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Alamat untuk antar-jemput..."
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {authState.user?.role === "owner" && (
+                <FormField
+                  control={form.control}
+                  name="id_cabang"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Cabang</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="-- Pilih Cabang --" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {cabangs.map((c) => (
+                            <SelectItem key={c.id} value={String(c.id)}>
+                              {c.nama_cabang}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
                 />
-              </div>
-              <div>
-                <Label htmlFor="edit-nomor_hp">Nomor HP</Label>
-                <Input
-                  id="edit-nomor_hp"
-                  name="nomor_hp"
-                  value={editingPelanggan.nomor_hp || ""}
-                  onChange={handleEditInputChange}
-                />
-              </div>
-              {/* Kamu bisa tambahkan input untuk edit data lain di sini jika perlu */}
+              )}
               <DialogFooter>
                 <Button
                   type="button"
                   variant="secondary"
-                  onClick={() => setIsEditModalOpen(false)}
+                  onClick={() => setIsNewModalOpen(false)}
                 >
                   Batal
                 </Button>
-                <Button type="submit">Simpan Perubahan</Button>
+                <Button type="submit">Simpan</Button>
               </DialogFooter>
             </form>
-          </DialogContent>
-        </Dialog>
-      )}
+          </Form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Data Pelanggan</DialogTitle>
+            <DialogDescription>
+              Perbarui detail untuk {editingPelanggan?.nama}.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateSubmit} className="py-4 space-y-4">
+            <div>
+              <Label htmlFor="edit-nama">Nama</Label>
+              <Input
+                id="edit-nama"
+                name="nama"
+                value={editingPelanggan?.nama || ""}
+                onChange={handleEditFormChange}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-nomor_hp">Nomor HP</Label>
+              <Input
+                id="edit-nomor_hp"
+                name="nomor_hp"
+                value={editingPelanggan?.nomor_hp || ""}
+                onChange={handleEditFormChange}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="edit-alamat">Alamat</Label>
+              <Textarea
+                id="edit-alamat"
+                name="alamat"
+                value={editingPelanggan?.alamat || ""}
+                onChange={handleEditFormChange}
+                placeholder="Alamat lengkap..."
+              />
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setIsEditModalOpen(false)}
+              >
+                Batal
+              </Button>
+              <Button type="submit">Simpan Perubahan</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

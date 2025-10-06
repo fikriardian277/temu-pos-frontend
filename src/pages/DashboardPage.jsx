@@ -3,10 +3,18 @@
 import React, { useState, useEffect } from "react";
 import api from "@/api/axiosInstance";
 import { useAuth } from "@/context/AuthContext";
-import OrderStatusPieChart from "@/components/charts/OrderStatusPieChart";
-import { TrendingUp, Building, DollarSign, ListOrdered } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import {
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+} from "recharts";
 
-// Impor komponen baru dari shadcn/ui
+// Impor komponen
 import {
   Card,
   CardContent,
@@ -22,190 +30,270 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  ArrowUpRight,
+  DollarSign,
+  ShoppingCart,
+  Users,
+  PlusCircle,
+} from "lucide-react";
 
-// [REBUILD] Komponen StatCard menggunakan komponen Card
-const StatCard = ({ title, value, icon }) => (
+// Komponen kartu statistik (reusable)
+const StatCard = ({ title, value, icon, subtext }) => (
   <Card>
     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium text-muted-foreground">
-        {title}
-      </CardTitle>
+      <CardTitle className="text-sm font-medium">{title}</CardTitle>
       {icon}
     </CardHeader>
     <CardContent>
       <div className="text-2xl font-bold">{value}</div>
+      {subtext && <p className="text-xs text-muted-foreground">{subtext}</p>}
     </CardContent>
   </Card>
 );
 
-// [REBUILD] Komponen OwnerDashboard
-const OwnerDashboard = ({ data }) => (
-  <div className="space-y-8">
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-      <StatCard
-        title="Total Revenue"
-        value={`Rp ${data.total_revenue.toLocaleString("id-ID")}`}
-        icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
-      />
-      <StatCard
-        title="Total Pesanan"
-        value={data.total_orders.toLocaleString("id-ID")}
-        icon={<ListOrdered className="h-4 w-4 text-muted-foreground" />}
-      />
-      <StatCard
-        title="Jumlah Cabang Aktif"
-        value={data.performance_by_cabang.length}
-        icon={<Building className="h-4 w-4 text-muted-foreground" />}
-      />
+// Komponen untuk Tampilan Owner
+const OwnerDashboard = ({ data }) => {
+  const navigate = useNavigate();
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          title="Pendapatan Hari Ini"
+          value={`Rp ${data.stats.revenueToday.toLocaleString("id-ID")}`}
+          icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
+        />
+        <StatCard
+          title="Transaksi Hari Ini"
+          value={data.stats.transactionsToday}
+          icon={<ShoppingCart className="h-4 w-4 text-muted-foreground" />}
+        />
+        <StatCard
+          title="Total Order Aktif"
+          value={data.stats.activeOrders}
+          icon={<ArrowUpRight className="h-4 w-4 text-muted-foreground" />}
+          subtext="Order yang belum selesai"
+        />
+        <StatCard
+          title="Pelanggan Baru (Bulan Ini)"
+          value={`+${data.stats.newCustomersThisMonth}`}
+          icon={<Users className="h-4 w-4 text-muted-foreground" />}
+        />
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
+        <Card className="lg:col-span-4">
+          <CardHeader>
+            <CardTitle>Tren Pendapatan (7 Hari Terakhir)</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart
+                data={data.dailyRevenue7Days}
+                margin={{ top: 5, right: 10, left: -20, bottom: 0 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="hsl(var(--border))"
+                />
+                <XAxis
+                  dataKey="tanggal"
+                  stroke="hsl(var(--foreground))"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <YAxis
+                  stroke="hsl(var(--foreground))"
+                  fontSize={12}
+                  tickLine={false}
+                  axisLine={false}
+                  tickFormatter={(value) => `Rp${value / 1000}k`}
+                />
+                <Tooltip
+                  contentStyle={{
+                    backgroundColor: "hsl(var(--background))",
+                    borderColor: "hsl(var(--border))",
+                  }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="pendapatan"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+        <Card className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle>Transaksi Terbaru</CardTitle>
+            <CardDescription>
+              5 transaksi terakhir dari semua cabang.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Pelanggan</TableHead>
+                  <TableHead>Cabang</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.recentTransactions.map((tx) => (
+                  <TableRow
+                    key={tx.id}
+                    onClick={() => navigate(`/riwayat/${tx.kode_invoice}`)}
+                    className="cursor-pointer"
+                  >
+                    <TableCell>
+                      {/* [FIX] Tambahkan ?. untuk Pelanggan */}
+                      <div className="font-medium">
+                        {tx.Pelanggan?.nama || "N/A"}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {tx.kode_invoice}
+                      </div>
+                    </TableCell>
+                    {/* [FIX] Tambahkan ?. untuk Cabang */}
+                    <TableCell>{tx.Cabang?.nama_cabang || "N/A"}</TableCell>
+                    <TableCell className="text-right">
+                      Rp {tx.grand_total.toLocaleString("id-ID")}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
     </div>
-    <Card>
-      <CardHeader>
-        <CardTitle>Performa per Cabang</CardTitle>
-        <CardDescription>
-          Ringkasan pendapatan dan pesanan untuk setiap cabang.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nama Cabang</TableHead>
-              <TableHead className="text-right">Total Revenue</TableHead>
-              <TableHead className="text-right">Total Pesanan</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.performance_by_cabang.map((cabang) => (
-              <TableRow key={cabang.id_cabang}>
-                <TableCell className="font-medium">
-                  {cabang["Cabang.nama_cabang"]}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  Rp {parseInt(cabang.total_revenue).toLocaleString("id-ID")}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {parseInt(cabang.total_orders).toLocaleString("id-ID")}
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
-  </div>
-);
+  );
+};
 
-// [REBUILD] Komponen BranchDashboard (Admin/Kasir)
-const BranchDashboard = ({ data }) => (
-  <div className="space-y-8">
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-      <StatCard
-        title="Revenue Hari Ini"
-        value={`Rp ${data.revenue_today.toLocaleString("id-ID")}`}
-        icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
-      />
-      <StatCard
-        title="Order Hari Ini"
-        value={data.orders_today}
-        icon={<ListOrdered className="h-4 w-4 text-muted-foreground" />}
-      />
-      <StatCard
-        title="Order Aktif"
-        value={data.active_orders}
-        icon={<TrendingUp className="h-4 w-4 text-muted-foreground" />}
-      />
-      <StatCard
-        title="Siap Diambil"
-        value={data.ready_to_pickup}
-        icon={<Building className="h-4 w-4 text-muted-foreground" />}
-      />
+// Komponen untuk Tampilan Kasir/Admin
+const KasirDashboard = ({ data }) => {
+  const navigate = useNavigate();
+  return (
+    <div className="space-y-6">
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard
+          title="Pendapatan Cabang (Hari Ini)"
+          value={`Rp ${data.stats.revenueToday.toLocaleString("id-ID")}`}
+          icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
+        />
+        <StatCard
+          title="Transaksi Cabang (Hari Ini)"
+          value={data.stats.transactionsToday}
+          icon={<ShoppingCart className="h-4 w-4 text-muted-foreground" />}
+        />
+        <StatCard
+          title="Order Aktif di Cabang Ini"
+          value={data.stats.activeOrders}
+          icon={<ArrowUpRight className="h-4 w-4 text-muted-foreground" />}
+        />
+      </div>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card className="col-span-full">
+          <CardHeader>
+            <CardTitle>Aksi Cepat</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Button
+              className="w-full md:w-auto"
+              onClick={() => navigate("/kasir")}
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Buat Transaksi Baru
+            </Button>
+          </CardContent>
+        </Card>
+        <Card className="col-span-full">
+          <CardHeader>
+            <CardTitle>Transaksi Terbaru di Cabang Ini</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Pelanggan</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.recentTransactions.map((tx) => (
+                  <TableRow
+                    key={tx.id}
+                    onClick={() => navigate(`/riwayat/${tx.kode_invoice}`)}
+                    className="cursor-pointer"
+                  >
+                    <TableCell>
+                      {/* [FIX] Tambahkan ?. untuk Pelanggan */}
+                      <div className="font-medium">
+                        {tx.Pelanggan?.nama || "N/A"}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {tx.kode_invoice}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{tx.status_proses}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      Rp {tx.grand_total.toLocaleString("id-ID")}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
     </div>
-    {data.status_counts && (
-      <Card>
-        <CardHeader>
-          <CardTitle>Status Order Aktif</CardTitle>
-          <CardDescription>
-            Distribusi status untuk semua pesanan yang sedang berjalan.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex justify-center">
-          <div className="max-w-xs">
-            <OrderStatusPieChart data={data.status_counts} />
-          </div>
-        </CardContent>
-      </Card>
-    )}
-  </div>
-);
-
-// Fungsi sapaan (tetap sama)
-const getGreeting = () => {
-  const currentHour = new Date().getHours();
-
-  if (currentHour >= 4 && currentHour < 12) {
-    return "Selamat Pagi";
-  } else if (currentHour >= 12 && currentHour < 15) {
-    return "Selamat Siang";
-  } else if (currentHour >= 15 && currentHour < 19) {
-    return "Selamat Sore";
-  } else {
-    return "Selamat Malam";
-  }
+  );
 };
 
 function DashboardPage() {
-  const { authState } = useAuth();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { authState } = useAuth();
 
   useEffect(() => {
-    if (!authState.user) return;
-
     const fetchDashboardData = async () => {
       try {
-        // [FIX] Tentukan endpoint berdasarkan peran pengguna
-        const endpoint =
-          authState.user.role === "owner"
-            ? "/dashboard/owner-summary"
-            : "/dashboard/summary";
-
-        const response = await api.get(endpoint);
+        setLoading(true);
+        const response = await api.get("/dashboard");
         setDashboardData(response.data);
-      } catch (err) {
-        setError("Gagal mengambil data dashboard.");
-        console.error(err);
+      } catch (error) {
+        console.error("Gagal mengambil data dashboard:", error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchDashboardData();
-  }, [authState.user]);
+  }, []);
 
-  if (loading) return <p className="text-center">Memuat data dashboard...</p>;
-  if (error) return <p className="text-center text-red-500">{error}</p>;
+  if (loading || !dashboardData) {
+    return <p className="text-center">Memuat dashboard...</p>;
+  }
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-2">
-        {getGreeting()},{" "}
-        {authState.user?.nama_lengkap || authState.user?.username}!
+      <h1 className="text-3xl font-bold mb-6">
+        Selamat Datang, {authState.user.nama_lengkap}!
       </h1>
-      <p className="text-muted-foreground mb-8">
-        {" "}
-        {/* [FIX] Gunakan warna tema */}
-        {authState.user.role === "owner"
-          ? "Berikut adalah ringkasan performa seluruh bisnis Anda."
-          : "Berikut adalah ringkasan operasional cabang Anda hari ini."}
-      </p>
-
-      {dashboardData &&
-        (authState.user.role === "owner" ? (
-          <OwnerDashboard data={dashboardData} />
-        ) : (
-          <BranchDashboard data={dashboardData} />
-        ))}
+      {dashboardData.role === "owner" ? (
+        <OwnerDashboard data={dashboardData} />
+      ) : (
+        <KasirDashboard data={dashboardData} />
+      )}
     </div>
   );
 }

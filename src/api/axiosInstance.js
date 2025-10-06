@@ -3,8 +3,8 @@ import { jwtDecode } from "jwt-decode";
 
 // Buat instance Axios dengan konfigurasi dasar
 const api = axios.create({
-  baseURL: "http://localhost:3000/api", // Sesuaikan jika port atau domain berbeda
-  withCredentials: true, // Ini SANGAT PENTING agar cookie bisa dikirim
+  baseURL: import.meta.env.VITE_API_URL, // <-- PERUBAHAN DI SINI
+  withCredentials: true,
 });
 
 // [INTERCEPTOR PERMINTAAN]

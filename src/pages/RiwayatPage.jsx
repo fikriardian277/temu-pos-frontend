@@ -3,6 +3,7 @@ import api from "../api/axiosInstance";
 import { useAuth } from "@/context/AuthContext";
 import { useReactToPrint } from "react-to-print";
 import Struk from "../components/struk/Struk";
+import { toast } from "sonner";
 
 // shadcn/ui
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,9 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Printer, MessageSquare, Loader2 } from "lucide-react";
+import { Printer, MessageSquare, Loader2, History } from "lucide-react";
+
+import EmptyState from "@/components/ui/EmptyState";
 
 function RiwayatPage() {
   const [transaksis, setTransaksis] = useState([]);
@@ -85,63 +88,28 @@ function RiwayatPage() {
     }
   };
 
-  const handleKirimWA = () => {
-    if (!detailTransaksi) return;
+  const handleKirimWA = async (tx) => {
+    // [FIX] Gunakan 'detailTransaksi' yang datanya lengkap, bukan 'tx'
+    if (!detailTransaksi)
+      return toast.error("Detail transaksi belum termuat, coba sesaat lagi.");
+    try {
+      const response = await api.post("/transaksi/generate-wa-message", {
+        kode_invoice: detailTransaksi.kode_invoice,
+        tipe_pesan: "struk",
+      });
 
-    const {
-      kode_invoice,
-      createdAt,
-      Pelanggan,
-      Pakets,
-      grand_total,
-      poin_digunakan,
-      poin_didapat,
-      status_pembayaran,
-      catatan,
-    } = detailTransaksi;
+      const { pesan, nomor_hp } = response.data;
 
-    const subtotal = Pakets.reduce(
-      (total, item) => total + (item.DetailTransaksi?.subtotal || 0),
-      0
-    );
-    let pesan = `*Struk Digital Laundry*\n\nInvoice: *${kode_invoice}*\nPelanggan: ${
-      Pelanggan.nama
-    }\nTanggal: ${new Date(createdAt).toLocaleString(
-      "id-ID"
-    )}\n-----------------------\n`;
-    Pakets.forEach((p) => {
-      pesan += `${p.Layanan?.nama_layanan || ""} - ${p.nama_paket}\n`;
-      pesan += `${p.DetailTransaksi?.jumlah || 0} ${
-        p.satuan
-      } x Rp ${p.harga.toLocaleString("id-ID")} = *Rp ${(
-        p.DetailTransaksi?.subtotal || 0
-      ).toLocaleString("id-ID")}*\n\n`;
-    });
-    pesan += `-----------------------\nSubtotal: Rp ${subtotal.toLocaleString(
-      "id-ID"
-    )}\n`;
-    if (poin_digunakan > 0) {
-      const diskon =
-        poin_digunakan * (authState.pengaturan?.rupiah_per_poin_redeem || 0);
-      pesan += `Diskon Poin: - Rp ${diskon.toLocaleString("id-ID")}\n`;
+      const nomorHPFormatted = nomor_hp.startsWith("0")
+        ? "62" + nomor_hp.substring(1)
+        : nomor_hp;
+      const url = `https://wa.me/${nomorHPFormatted}?text=${encodeURIComponent(
+        pesan
+      )}`;
+      window.open(url, "_blank");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Gagal membuat pesan WA.");
     }
-    pesan += `*GRAND TOTAL: Rp ${grand_total.toLocaleString(
-      "id-ID"
-    )}*\nStatus: *${status_pembayaran}*\n\n`;
-    if (Pelanggan.status_member === "Aktif") {
-      pesan += `--- Info Poin ---\nPoin Ditukar: -${poin_digunakan}\nPoin Didapat: +${poin_didapat}\nPoin Sekarang: *${Pelanggan.poin}*\n\n`;
-    }
-    if (catatan) {
-      pesan += `--- Catatan ---\n${catatan}\n\n`;
-    }
-    pesan += `Terima kasih!`;
-    const nomorHP = Pelanggan.nomor_hp.startsWith("0")
-      ? "62" + Pelanggan.nomor_hp.substring(1)
-      : Pelanggan.nomor_hp;
-    window.open(
-      `https://wa.me/${nomorHP}?text=${encodeURIComponent(pesan)}`,
-      "_blank"
-    );
   };
 
   return (
@@ -162,27 +130,24 @@ function RiwayatPage() {
           />
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice</TableHead>
-                  <TableHead>Pelanggan</TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
+          {/* [DIROMBAK] Logika Tampilan di sini */}
+          {loading ? (
+            <p className="text-center py-10">Memuat riwayat...</p>
+          ) : transaksis.length > 0 ? (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
-                      Memuat riwayat...
-                    </TableCell>
+                    <TableHead>Invoice</TableHead>
+                    <TableHead>Pelanggan</TableHead>
+                    <TableHead>Tanggal</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
                   </TableRow>
-                ) : transaksis.length > 0 ? (
-                  transaksis.map((tx) => (
+                </TableHeader>
+                <TableBody>
+                  {transaksis.map((tx) => (
                     <TableRow key={tx.id}>
                       <TableCell className="font-mono font-semibold">
                         {tx.kode_invoice}
@@ -217,17 +182,18 @@ function RiwayatPage() {
                         </Button>
                       </TableCell>
                     </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
-                      Tidak ada data transaksi.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            // [BARU] Tampilkan EmptyState jika tidak ada data
+            <EmptyState
+              icon={<History className="h-16 w-16" />}
+              title="Riwayat Transaksi Kosong"
+              description="Tidak ada transaksi yang cocok dengan filter Anda, atau belum ada transaksi sama sekali."
+            />
+          )}
         </CardContent>
       </Card>
 

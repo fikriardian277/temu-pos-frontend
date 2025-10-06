@@ -169,6 +169,12 @@ const Struk = ({ transaksi }) => {
           <span>Subtotal</span>
           <span>Rp {formatRupiah(subtotal)}</span>
         </div>
+        {transaksi.biaya_layanan > 0 && (
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <span>Biaya Layanan</span>
+            <span>Rp {formatRupiah(transaksi.biaya_layanan)}</span>
+          </div>
+        )}
         {poin_digunakan > 0 && (
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <span>Diskon Poin</span>

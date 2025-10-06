@@ -8,6 +8,8 @@ import { Trash2 } from "lucide-react";
 import { Separator } from "../ui/separator";
 import { Checkbox } from "../ui/checkbox"; // <-- Jangan lupa import Checkbox
 import { Label } from "../ui/label"; // <-- Jangan lupa import Label
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { Input } from "../ui/input";
 
 function Cart({
   cart,
@@ -24,13 +26,22 @@ function Cart({
   metodePembayaran,
   setMetodePembayaran,
   selectedPelanggan,
-  // [BARU] Terima props baru untuk logika dinamis
+
   isPoinSystemActive,
   isBonusMerchandiseActive,
   merchandiseName,
   bonusMerchandiseDibawa,
   setBonusMerchandiseDibawa,
+  pengaturan,
+  tipeLayanan,
+  setTipeLayanan,
+  jarakKm,
+  setJarakKm,
+  biayaLayanan,
+  onOpenAlamatModal,
 }) {
+  const isLayananAntarJemputAktif = pengaturan?.layanan_antar_jemput_aktif;
+  const isDeliverySelected = tipeLayanan !== "dine_in";
   return (
     <Card className="sticky top-20">
       <CardHeader>
@@ -86,6 +97,71 @@ function Cart({
               onChange={(e) => setCatatan(e.target.value)}
             />
           </div>
+
+          {isLayananAntarJemputAktif && selectedPelanggan && (
+            <div className="space-y-3">
+              <Separator />
+              <div>
+                <Label>Layanan Antar-Jemput</Label>
+                <RadioGroup
+                  value={tipeLayanan}
+                  onValueChange={setTipeLayanan}
+                  className="grid grid-cols-2 gap-2 mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="dine_in" id="dine_in" />
+                    <Label htmlFor="dine_in">Datang Langsung</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="jemput" id="jemput" />
+                    <Label htmlFor="jemput">Jemput Saja</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="antar" id="antar" />
+                    <Label htmlFor="antar">Antar Saja</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="antar_jemput" id="antar_jemput" />
+                    <Label htmlFor="antar_jemput">Jemput & Antar</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {isDeliverySelected && (
+                <div>
+                  <Label htmlFor="jarakKm">Masukkan Jarak (Km)</Label>
+                  <Input
+                    id="jarakKm"
+                    type="number"
+                    step="0.1"
+                    placeholder="Contoh: 3.5"
+                    value={jarakKm}
+                    onChange={(e) => setJarakKm(e.target.value)}
+                  />
+                  {/* V-- [BARU] Tampilkan Info & Tombol Alamat --V */}
+                  <div className="text-xs text-muted-foreground mt-1">
+                    {selectedPelanggan.alamat ? (
+                      <span>Alamat: {selectedPelanggan.alamat}</span>
+                    ) : (
+                      <span className="text-yellow-600">
+                        Pelanggan ini belum punya alamat.
+                      </span>
+                    )}
+                    <Button
+                      type="button"
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-1 ml-1"
+                      onClick={onOpenAlamatModal}
+                    >
+                      {selectedPelanggan.alamat ? "(Edit)" : "(Tambah)"}
+                    </Button>
+                  </div>
+                  {/* ^-- Sampai sini --^ */}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* [FIX & LOGIC] Checkbox 'totebag' diganti dengan 'merchandise' dinamis */}
           {isPoinSystemActive && isBonusMerchandiseActive && (
@@ -148,6 +224,13 @@ function Cart({
               <span className="text-muted-foreground">Subtotal</span>
               <span>Rp {subtotal.toLocaleString("id-ID")}</span>
             </div>
+
+            {biayaLayanan > 0 && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Biaya Layanan</span>
+                <span>Rp {biayaLayanan.toLocaleString("id-ID")}</span>
+              </div>
+            )}
             {diskonPoin > 0 && (
               <div className="flex justify-between text-sm text-green-600">
                 <span className="text-muted-foreground">Diskon Poin</span>

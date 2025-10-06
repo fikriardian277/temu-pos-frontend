@@ -6,6 +6,7 @@ import api from "../api/axiosInstance";
 import { useAuth } from "@/context/AuthContext";
 import { useReactToPrint } from "react-to-print";
 import Struk from "../components/struk/Struk";
+import { toast } from "sonner";
 
 import {
   Card,
@@ -32,8 +33,8 @@ export default function RiwayatDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // ref untuk react-to-print v3 (contentRef)
-  const strukRef = useRef(null);
+  // === Perbaikan: make sure initial value is null ===
+  const strukRef = useRef(null); // dipakai langsung oleh useReactToPrint v3 via contentRef
 
   useEffect(() => {
     const fetchDetail = async () => {
@@ -53,91 +54,45 @@ export default function RiwayatDetailPage() {
     if (kode_invoice) fetchDetail();
   }, [kode_invoice]);
 
-  // Print handler (react-to-print v3)
+  // === useReactToPrint v3: gunakan contentRef (bukan content: () => ...) ===
   const handlePrint = useReactToPrint({
-    contentRef: strukRef,
-    documentTitle: transaksi?.kode_invoice
-      ? `struk-${transaksi.kode_invoice}`
-      : "struk",
-    removeAfterPrint: true,
+    contentRef: strukRef, // <-- v3 API: pass the ref object
+    documentTitle: `struk-${transaksi?.kode_invoice || "transaksi"}`,
+    // ganti onBeforeGetContent -> onBeforePrint (v3)
+    onBeforePrint: async () => {
+      // kalau perlu tunggu DOM / state stabil sebelum print
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    },
+    // styling default untuk print (bisa diubah sesuai kebutuhan)
+    pageStyle: `
+      @page { size: auto; margin: 0mm; }
+      body { -webkit-print-color-adjust: exact; }
+    `,
   });
 
-  const handleKirimWA = () => {
+  const handleKirimWA = async () => {
     if (!transaksi) return;
-    const {
-      kode_invoice: kode,
-      createdAt,
-      Pelanggan,
-      Pakets,
-      grand_total,
-      poin_digunakan,
-      poin_didapat,
-      status_pembayaran,
-      catatan,
-      metode_pembayaran,
-    } = transaksi;
-
-    const subtotal = Array.isArray(Pakets)
-      ? Pakets.reduce(
-          (total, item) => total + (item.DetailTransaksi?.subtotal || 0),
-          0
-        )
-      : 0;
-
-    let pesan = `*Struk Digital Laundry*\n\n`;
-    pesan += `Invoice: *${kode}*\n`;
-    pesan += `Pelanggan: ${Pelanggan?.nama || "-"}\n`;
-    pesan += `Tanggal: ${new Date(createdAt).toLocaleString("id-ID")}\n`;
-    pesan += `-----------------------\n`;
-
-    if (Array.isArray(Pakets)) {
-      Pakets.forEach((p) => {
-        const jumlah = p.DetailTransaksi?.jumlah || 0;
-        const subtotalItem = p.DetailTransaksi?.subtotal || 0;
-        pesan += `${
-          p.Layanan?.nama_layanan ? p.Layanan.nama_layanan + " - " : ""
-        }${p.nama_paket}\n`;
-        pesan += `${jumlah} ${p.satuan || ""} x Rp ${formatRupiah(
-          p.harga || 0
-        )} = *Rp ${formatRupiah(subtotalItem)}*\n\n`;
+    try {
+      const response = await api.post("/transaksi/generate-wa-message", {
+        kode_invoice: transaksi.kode_invoice,
+        tipe_pesan: "struk",
       });
-    }
 
-    pesan += `-----------------------\n`;
-    pesan += `Subtotal: Rp ${formatRupiah(subtotal)}\n`;
-    if (poin_digunakan > 0) {
-      const diskon =
-        poin_digunakan * (authState.pengaturan?.rupiah_per_poin_redeem || 0);
-      pesan += `Diskon Poin: - Rp ${formatRupiah(diskon)}\n`;
-    }
-    pesan += `*GRAND TOTAL: Rp ${formatRupiah(grand_total)}*\n`;
-    pesan += `Status: *${status_pembayaran}* ${
-      status_pembayaran === "Lunas" && metode_pembayaran
-        ? `(${metode_pembayaran})`
-        : ""
-    }\n\n`;
+      const { pesan, nomor_hp } = response.data;
 
-    if (Pelanggan?.status_member === "Aktif") {
-      pesan += `--- Info Poin ---\n`;
-      pesan += `Poin Ditukar: -${poin_digunakan}\n`;
-      pesan += `Poin Didapat: +${poin_didapat}\n`;
-      pesan += `Poin Sekarang: *${Pelanggan?.poin || 0}*\n\n`;
-    }
+      const nomorHPFormatted = nomor_hp?.startsWith("0")
+        ? "62" + nomor_hp.substring(1)
+        : nomor_hp;
+      if (!nomorHPFormatted)
+        return toast.error("Nomor HP pelanggan tidak tersedia.");
 
-    if (catatan) {
-      pesan += `--- Catatan ---\n${catatan}\n\n`;
+      const url = `https://wa.me/${nomorHPFormatted}?text=${encodeURIComponent(
+        pesan
+      )}`;
+      window.open(url, "_blank");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Gagal membuat pesan WA.");
     }
-    pesan += `Terima kasih!`;
-
-    const nomorHPRaw = Pelanggan?.nomor_hp || "";
-    const nomorHP = nomorHPRaw.startsWith("0")
-      ? "62" + nomorHPRaw.slice(1)
-      : nomorHPRaw;
-    if (!nomorHP) {
-      return alert("Nomor HP pelanggan tidak tersedia.");
-    }
-    const url = `https://wa.me/${nomorHP}?text=${encodeURIComponent(pesan)}`;
-    window.open(url, "_blank");
   };
 
   if (loading)
@@ -175,7 +130,14 @@ export default function RiwayatDetailPage() {
           <Button variant="ghost" onClick={() => navigate(-1)}>
             ← Kembali
           </Button>
-          <Button variant="outline" onClick={handlePrint}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              // debug helper: uncomment kalau perlu cek ref
+              // console.log("STRUK REF:", strukRef.current);
+              handlePrint();
+            }}
+          >
             <Printer className="mr-2 h-4 w-4" />
             Cetak Struk
           </Button>
@@ -187,11 +149,10 @@ export default function RiwayatDetailPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* LEFT: Preview Struk (pakai ref langsung agar bisa di-print) */}
+        {/* LEFT: Preview Struk (tampil di UI) */}
         <div className="lg:col-span-1 flex justify-center">
           <div className="w-[220px]">
-            {/* Struk menerima ref (forwardRef) sehingga bisa diprint */}
-            <Struk ref={strukRef} transaksi={transaksi} />
+            <Struk transaksi={transaksi} />
           </div>
         </div>
 
@@ -306,7 +267,7 @@ export default function RiwayatDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Detail paket (table-like) */}
+          {/* Detail paket */}
           <Card>
             <CardHeader>
               <CardTitle>Rincian Paket</CardTitle>
@@ -363,6 +324,16 @@ export default function RiwayatDetailPage() {
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* OFF-SCREEN struk khusus untuk print (tetap ada di DOM, muncul saat print) */}
+      <div
+        ref={strukRef}
+        // ini ga pake `hidden` karena beberapa versi/tailwind bisa menyebabkan masalah; pakai off-screen + media print
+        className="absolute -left-[9999px] top-0 print:static print:block"
+        aria-hidden="true"
+      >
+        <Struk transaksi={transaksi} />
       </div>
     </div>
   );

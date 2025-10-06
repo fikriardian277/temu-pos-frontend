@@ -11,6 +11,7 @@ import PrintStrukButton from "../components/struk/PrintStrukButton"; // Jangan l
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { CheckCircle } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -63,13 +65,23 @@ function KasirPage() {
   const [formError, setFormError] = useState("");
   const [poinInput, setPoinInput] = useState("");
 
+  const [tipeLayanan, setTipeLayanan] = useState("dine_in");
+  const [jarakKm, setJarakKm] = useState("");
+  const [biayaLayanan, setBiayaLayanan] = useState(0);
+  const [isAlamatModalOpen, setIsAlamatModalOpen] = useState(false);
+  const [alamatToEdit, setAlamatToEdit] = useState("");
+
   const BIAYA_MEMBER = authState.pengaturan?.biaya_membership || 50000;
 
   const handleSelectPelanggan = (pelanggan) => {
     setSelectedPelanggan(pelanggan);
+    // Reset state terkait transaksi sebelumnya
     setIsUpgradingMember(false);
     setPoinUntukDitukar(0);
     setCart([]);
+    // Reset juga pilihan layanan
+    setTipeLayanan("dine_in");
+    setJarakKm("");
   };
 
   const handleUpgradeMember = () => {
@@ -145,6 +157,8 @@ function KasirPage() {
       poin_ditukar: poinUntukDitukar,
       bonus_merchandise_dibawa: bonusMerchandiseDibawa,
       upgrade_member: isUpgradingMember,
+      tipe_layanan: tipeLayanan,
+      jarak_km: parseFloat(jarakKm) || 0,
     };
     try {
       const response = await api.post("/transaksi", transaksiData);
@@ -164,64 +178,28 @@ function KasirPage() {
     }
   };
 
-  const handleKirimWA = () => {
+  const handleKirimWA = async () => {
     if (!detailTransaksiSukses) return;
-    const {
-      kode_invoice,
-      createdAt,
-      Pelanggan,
-      Pakets,
-      grand_total,
-      poin_digunakan,
-      poin_didapat,
-      status_pembayaran,
-      catatan,
-    } = detailTransaksiSukses;
+    try {
+      // Minta pesan dari backend
+      const response = await api.post("/transaksi/generate-wa-message", {
+        kode_invoice: detailTransaksiSukses.kode_invoice,
+        tipe_pesan: "struk",
+      });
 
-    const subtotal = Pakets.reduce(
-      (total, item) => total + item.DetailTransaksi.subtotal,
-      0
-    );
+      const { pesan, nomor_hp } = response.data;
 
-    let pesan = `*Struk Digital Laundry*\n\n`;
-    pesan += `Invoice: *${kode_invoice}*\n`;
-    pesan += `Pelanggan: ${Pelanggan.nama}\n`;
-    pesan += `Tanggal: ${new Date(createdAt).toLocaleString("id-ID")}\n`;
-    pesan += `-----------------------\n`;
-    Pakets.forEach((p) => {
-      pesan += `${p.Layanan.nama_layanan} - ${p.nama_paket}\n`;
-      pesan += `${p.DetailTransaksi.jumlah} ${
-        p.satuan
-      } x Rp ${p.harga.toLocaleString(
-        "id-ID"
-      )} = *Rp ${p.DetailTransaksi.subtotal.toLocaleString("id-ID")}*\n\n`;
-    });
-    pesan += `-----------------------\n`;
-    pesan += `Subtotal: Rp ${subtotal.toLocaleString("id-ID")}\n`;
-    if (poin_digunakan > 0) {
-      const diskon =
-        poin_digunakan * (authState.pengaturan?.rupiah_per_poin_redeem || 0);
-      pesan += `Diskon Poin: - Rp ${diskon.toLocaleString("id-ID")}\n`;
+      // Buka link WhatsApp dengan pesan dari backend
+      const nomorHPFormatted = nomor_hp.startsWith("0")
+        ? "62" + nomor_hp.substring(1)
+        : nomor_hp;
+      const url = `https://wa.me/${nomorHPFormatted}?text=${encodeURIComponent(
+        pesan
+      )}`;
+      window.open(url, "_blank");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Gagal membuat pesan WA.");
     }
-    pesan += `*GRAND TOTAL: Rp ${grand_total.toLocaleString("id-ID")}*\n`;
-    pesan += `Status: *${status_pembayaran}*\n\n`;
-    if (Pelanggan.status_member === "Aktif") {
-      pesan += `--- Info Poin ---\n`;
-      pesan += `Poin Ditukar: -${poin_digunakan}\n`;
-      pesan += `Poin Didapat: +${poin_didapat}\n`;
-      pesan += `Poin Sekarang: *${Pelanggan.poin}*\n\n`;
-    }
-    if (catatan) {
-      pesan += `--- Catatan ---\n`;
-      pesan += `${catatan}\n\n`;
-    }
-    pesan += `Terima kasih!`;
-
-    const nomorHP = Pelanggan.nomor_hp.startsWith("0")
-      ? "62" + Pelanggan.nomor_hp.substring(1)
-      : Pelanggan.nomor_hp;
-    const url = `https://wa.me/${nomorHP}?text=${encodeURIComponent(pesan)}`;
-    window.open(url, "_blank");
   };
 
   const resetForm = () => {
@@ -267,8 +245,9 @@ function KasirPage() {
   useEffect(() => {
     const newSubtotal = cart.reduce((total, item) => total + item.subtotal, 0);
     setSubtotal(newSubtotal);
-    setGrandTotal(newSubtotal - diskonPoin);
-  }, [cart, diskonPoin]);
+    // [FIX] Tambahkan biayaLayanan ke dalam grand total
+    setGrandTotal(newSubtotal - diskonPoin + biayaLayanan);
+  }, [cart, diskonPoin, biayaLayanan]); // <-- Jangan lupa tambahkan biayaLayanan di sini
 
   useEffect(() => {
     setIsUpgradingMember(false);
@@ -281,6 +260,62 @@ function KasirPage() {
       setSelectedPelanggan(location.state.pelangganTerpilih);
     }
   }, [location.state]);
+
+  useEffect(() => {
+    if (!authState.pengaturan?.layanan_antar_jemput_aktif) {
+      setBiayaLayanan(0);
+      return;
+    }
+
+    const {
+      batas_jarak_gratis_jemput,
+      biaya_jemput_jarak,
+      batas_jarak_gratis_antar,
+      biaya_antar_jarak,
+    } = authState.pengaturan;
+
+    const jarak = parseFloat(jarakKm) || 0;
+    let biayaJemput = 0;
+    let biayaAntar = 0;
+
+    // Hitung biaya jemput
+    if (tipeLayanan === "jemput" || tipeLayanan === "antar_jemput") {
+      if (jarak > batas_jarak_gratis_jemput) {
+        biayaJemput = biaya_jemput_jarak;
+      }
+    }
+
+    // Hitung biaya antar
+    if (tipeLayanan === "antar" || tipeLayanan === "antar_jemput") {
+      if (jarak > batas_jarak_gratis_antar) {
+        biayaAntar = biaya_antar_jarak;
+      }
+    }
+
+    setBiayaLayanan(biayaJemput + biayaAntar);
+  }, [tipeLayanan, jarakKm, authState.pengaturan]);
+
+  const handleOpenAlamatModal = () => {
+    if (!selectedPelanggan) return;
+    setAlamatToEdit(selectedPelanggan.alamat || "");
+    setIsAlamatModalOpen(true);
+  };
+
+  // [BARU] Fungsi untuk mengirim update alamat ke backend
+  const handleUpdateAlamat = async (e) => {
+    e.preventDefault();
+    try {
+      const response = await api.put(`/pelanggan/${selectedPelanggan.id}`, {
+        alamat: alamatToEdit,
+      });
+      // Update state pelanggan yang dipilih dengan data terbaru dari server
+      setSelectedPelanggan(response.data.data);
+      toast.success("Alamat pelanggan berhasil diupdate!");
+      setIsAlamatModalOpen(false);
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Gagal mengupdate alamat.");
+    }
+  };
 
   return (
     <div>
@@ -297,6 +332,7 @@ function KasirPage() {
                 isPaidMembershipRequired={isPaidMembershipRequired}
                 isUpgradingMember={isUpgradingMember}
                 onOpenPoinModal={() => setIsPoinModalOpen(true)}
+                pengaturan={authState.pengaturan}
               />
               <ServiceSelector onAddToCart={addItemToCart} />
             </div>
@@ -321,6 +357,13 @@ function KasirPage() {
                 bonusMerchandiseDibawa={bonusMerchandiseDibawa}
                 setBonusMerchandiseDibawa={setBonusMerchandiseDibawa}
                 selectedPelanggan={selectedPelanggan}
+                pengaturan={authState.pengaturan}
+                tipeLayanan={tipeLayanan}
+                setTipeLayanan={setTipeLayanan}
+                jarakKm={jarakKm}
+                setJarakKm={setJarakKm}
+                biayaLayanan={biayaLayanan}
+                onOpenAlamatModal={handleOpenAlamatModal}
               />
             </div>
           </div>
@@ -401,6 +444,36 @@ function KasirPage() {
           </DialogContent>
         </Dialog>
       )}
+      <Dialog open={isAlamatModalOpen} onOpenChange={setIsAlamatModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Alamat Pelanggan</DialogTitle>
+            <DialogDescription>
+              Ubah alamat untuk {selectedPelanggan?.nama}. Perubahan ini akan
+              tersimpan permanen.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleUpdateAlamat} className="py-4">
+            <Textarea
+              value={alamatToEdit}
+              onChange={(e) => setAlamatToEdit(e.target.value)}
+              placeholder="Masukkan alamat lengkap pelanggan..."
+              rows={4}
+              autoFocus
+            />
+            <DialogFooter className="mt-4">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setIsAlamatModalOpen(false)}
+              >
+                Batal
+              </Button>
+              <Button type="submit">Simpan Alamat</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

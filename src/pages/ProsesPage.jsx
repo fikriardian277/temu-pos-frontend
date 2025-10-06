@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import api from "../api/axiosInstance";
+import { toast } from "sonner";
 
-// Impor komponen-komponen shadcn/ui
+// Impor komponen
 import { Button } from "@/components/ui/button";
+
 import {
   Card,
   CardContent,
@@ -23,11 +25,28 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { WashingMachine, Check, PackageCheck } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  WashingMachine,
+  Check,
+  PackageCheck,
+  Truck,
+  ArrowRight,
+  ClipboardList,
+} from "lucide-react"; // Impor ikon baru
 
-// Komponen untuk satu kartu transaksi (di-styling ulang)
+import EmptyState from "@/components/ui/EmptyState";
+
+// Komponen kartu transaksi (di-upgrade dengan logika baru)
 const TransaksiCard = ({ transaksi, onUpdateStatus, onSelesaikan }) => {
-  const { status_proses, status_pembayaran } = transaksi;
+  const { status_proses, status_pembayaran, tipe_layanan } = transaksi;
 
   const getStatusVariant = () => {
     if (status_pembayaran === "Lunas") return "success";
@@ -51,21 +70,30 @@ const TransaksiCard = ({ transaksi, onUpdateStatus, onSelesaikan }) => {
         </div>
       </CardHeader>
       <CardContent className="p-4 text-xs text-muted-foreground space-y-1">
-        {transaksi.Pakets?.map((p, index) => (
-          <p key={`${p.id || index}-${p.nama_paket}`} className="truncate">
-            • {p.Layanan?.nama_layanan} - {p.nama_paket}
+        {transaksi.Pakets?.map((p) => (
+          <p key={p.id} className="truncate">
+            • {p.Layanan.nama_layanan} - {p.nama_paket}
           </p>
         ))}
       </CardContent>
       <CardFooter className="p-4">
+        {/* [LOGIC] Tombol-tombol aksi sekarang lebih pintar */}
+        {status_proses === "Menunggu Penjemputan" && (
+          <Button
+            size="sm"
+            className="w-full"
+            onClick={() => onUpdateStatus(transaksi, "Diterima")}
+          >
+            <ArrowRight className="mr-2 h-4 w-4" /> Konfirmasi Diterima
+          </Button>
+        )}
         {status_proses === "Diterima" && (
           <Button
             size="sm"
             className="w-full"
             onClick={() => onUpdateStatus(transaksi, "Proses Cuci")}
           >
-            <WashingMachine className="mr-2 h-4 w-4" />
-            Mulai Cuci
+            <WashingMachine className="mr-2 h-4 w-4" /> Mulai Cuci
           </Button>
         )}
         {status_proses === "Proses Cuci" && (
@@ -75,19 +103,39 @@ const TransaksiCard = ({ transaksi, onUpdateStatus, onSelesaikan }) => {
             className="w-full"
             onClick={() => onUpdateStatus(transaksi, "Siap Diambil")}
           >
-            <PackageCheck className="mr-2 h-4 w-4" />
-            Siap Diambil
+            <PackageCheck className="mr-2 h-4 w-4" /> Siap Diambil
           </Button>
         )}
         {status_proses === "Siap Diambil" && (
+          <>
+            {tipe_layanan === "antar" || tipe_layanan === "antar_jemput" ? (
+              <Button
+                size="sm"
+                className="w-full bg-orange-500 hover:bg-orange-600"
+                onClick={() => onUpdateStatus(transaksi, "Proses Pengantaran")}
+              >
+                <Truck className="mr-2 h-4 w-4" /> Mulai Pengantaran
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="success"
+                className="w-full"
+                onClick={() => onSelesaikan(transaksi)}
+              >
+                <Check className="mr-2 h-4 w-4" /> Selesaikan (Diambil)
+              </Button>
+            )}
+          </>
+        )}
+        {status_proses === "Proses Pengantaran" && (
           <Button
             size="sm"
             variant="success"
             className="w-full"
             onClick={() => onSelesaikan(transaksi)}
           >
-            <Check className="mr-2 h-4 w-4" />
-            Selesaikan Order
+            <Check className="mr-2 h-4 w-4" /> Selesai Diantar
           </Button>
         )}
       </CardFooter>
@@ -101,116 +149,145 @@ const KanbanColumn = ({
   transactions,
   onUpdateStatus,
   onSelesaikan,
-}) => (
-  <div className="flex-1">
-    <div className="p-4 text-center sticky top-16 bg-background/80 backdrop-blur-sm z-10">
-      <h2 className="font-bold text-lg">{title}</h2>
-      <p className="text-sm text-muted-foreground">
-        {transactions.length} order
-      </p>
-      <Separator className="mt-2" />
+}) => {
+  // [UPDATE] Tampilkan pesan jika kolom kosong
+  return (
+    <div className="flex-1 min-w-[300px]">
+      <div className="p-4 text-center sticky top-16 bg-background/80 backdrop-blur-sm z-10">
+        <h2 className="font-bold text-lg">{title}</h2>
+        <p className="text-sm text-muted-foreground">
+          {transactions.length} order
+        </p>
+        <Separator className="mt-2" />
+      </div>
+      <div className="h-[calc(100vh-12rem)] overflow-y-auto px-2 pt-2">
+        {transactions.length > 0 ? (
+          transactions.map((tx) => (
+            <TransaksiCard
+              key={tx.id}
+              transaksi={tx}
+              onUpdateStatus={onUpdateStatus}
+              onSelesaikan={onSelesaikan}
+            />
+          ))
+        ) : (
+          <p className="text-center text-sm text-muted-foreground p-4">
+            Kosong
+          </p>
+        )}
+      </div>
     </div>
-    <div className="h-[calc(100vh-12rem)] overflow-y-auto px-4 pb-4">
-      {transactions.map((tx) => (
-        <TransaksiCard
-          key={tx.id}
-          transaksi={tx}
-          onUpdateStatus={onUpdateStatus}
-          onSelesaikan={onSelesaikan}
-        />
-      ))}
-    </div>
-  </div>
-);
+  );
+};
 
 function ProsesPage() {
   const [transaksi, setTransaksi] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [currentTx, setCurrentTx] = useState(null);
   const [metodePembayaran, setMetodePembayaran] = useState("Cash");
+  const [mobileView, setMobileView] = useState("jemput");
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const response = await api.get("/transaksi/aktif");
+      // [UPDATE] Kirim search term ke API
+      const response = await api.get("/transaksi/aktif", {
+        params: { search: searchTerm },
+      });
       setTransaksi(response.data);
     } catch (err) {
       setError("Gagal mengambil data transaksi.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [searchTerm]);
 
   useEffect(() => {
-    fetchData();
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 500); // Debounce
+    return () => clearTimeout(timer);
   }, [fetchData]);
-
-  const kirimNotifSiapDiambil = (tx) => {
-    const pesan = `Halo ${tx.Pelanggan.nama}, cucian Anda dengan invoice *${tx.kode_invoice}* sudah SIAP DIAMBIL. Terima kasih!`;
-    const nomorHP = tx.Pelanggan.nomor_hp.startsWith("0")
-      ? "62" + tx.Pelanggan.nomor_hp.substring(1)
-      : tx.Pelanggan.nomor_hp;
-    window.open(
-      `https://wa.me/${nomorHP}?text=${encodeURIComponent(pesan)}`,
-      "_blank"
-    );
-  };
 
   const handleUpdateStatus = async (tx, newStatus) => {
     try {
       const { data } = await api.put(`/transaksi/${tx.id}/status`, {
         status: newStatus,
       });
-      // Update data lokal dengan data terbaru dari server
       setTransaksi((prev) =>
         prev.map((t) => (t.id === tx.id ? { ...t, ...data.data } : t))
       );
+
+      // Kirim notif WA jika status berubah menjadi 'Siap Diambil'
       if (newStatus === "Siap Diambil") {
-        kirimNotifSiapDiambil(tx);
+        toast.info("Mempersiapkan notifikasi WhatsApp...");
+        try {
+          const response = await api.post("/transaksi/generate-wa-message", {
+            kode_invoice: tx.kode_invoice,
+            tipe_pesan: "siap_diambil",
+          });
+          const { pesan, nomor_hp } = response.data;
+          const nomorHPFormatted = nomor_hp.startsWith("0")
+            ? "62" + nomor_hp.substring(1)
+            : nomor_hp;
+          window.open(
+            `https://wa.me/${nomorHPFormatted}?text=${encodeURIComponent(
+              pesan
+            )}`,
+            "_blank"
+          );
+        } catch (waError) {
+          toast.error(
+            waError.response?.data?.message || "Gagal membuat pesan WA."
+          );
+        }
       }
     } catch (error) {
-      alert("Gagal mengupdate status.");
+      toast.error("Gagal mengupdate status.");
     }
   };
 
   const handleSelesaikan = (tx) => {
     if (tx.status_pembayaran === "Belum Lunas") {
       setCurrentTx(tx);
-      setMetodePembayaran("Cash"); // Reset ke default
+      setMetodePembayaran("Cash");
       setIsPaymentModalOpen(true);
     } else {
-      handleUpdateStatus(tx, "Selesai").then(() => {
-        // Hapus dari list setelah 500ms agar ada efek visual
-        setTimeout(
-          () => setTransaksi((prev) => prev.filter((t) => t.id !== tx.id)),
-          500
-        );
+      // Langsung selesaikan jika sudah lunas
+      finalizeOrder(tx.id);
+    }
+  };
+
+  const finalizeOrder = async (txId, paymentData = {}) => {
+    try {
+      await api.put(`/transaksi/${txId}/status`, {
+        status: "Selesai",
+        ...paymentData,
       });
+      toast.success("Order berhasil diselesaikan!");
+      // Hapus dari list setelah 500ms agar ada efek visual
+      setTimeout(
+        () => setTransaksi((prev) => prev.filter((t) => t.id !== txId)),
+        500
+      );
+    } catch (error) {
+      toast.error("Gagal menyelesaikan order.");
     }
   };
 
   const handleFinalizePayment = async () => {
     if (!currentTx || !metodePembayaran) return;
-    try {
-      await api.put(`/transaksi/${currentTx.id}/status`, {
-        status: "Selesai",
-        metode_pembayaran: metodePembayaran,
-      });
-      setIsPaymentModalOpen(false);
-      setCurrentTx(null);
-      // Hapus dari list setelah 500ms
-      setTimeout(
-        () =>
-          setTransaksi((prev) => prev.filter((tx) => tx.id !== currentTx.id)),
-        500
-      );
-    } catch (error) {
-      alert("Gagal menyelesaikan pembayaran.");
-    }
+    await finalizeOrder(currentTx.id, { metode_pembayaran: metodePembayaran });
+    setIsPaymentModalOpen(false);
+    setCurrentTx(null);
   };
 
+  const menungguPenjemputan = transaksi.filter(
+    (tx) => tx.status_proses === "Menunggu Penjemputan"
+  );
   const diterima = transaksi.filter((tx) => tx.status_proses === "Diterima");
   const prosesCuci = transaksi.filter(
     (tx) => tx.status_proses === "Proses Cuci"
@@ -218,34 +295,107 @@ function ProsesPage() {
   const siapDiambil = transaksi.filter(
     (tx) => tx.status_proses === "Siap Diambil"
   );
+  const prosesPengantaran = transaksi.filter(
+    (tx) => tx.status_proses === "Proses Pengantaran"
+  );
+
+  const statusList = [
+    {
+      title: "Menunggu Penjemputan",
+      data: menungguPenjemputan,
+      value: "jemput",
+    },
+    { title: "Diterima", data: diterima, value: "terima" },
+    { title: "Proses Cuci", data: prosesCuci, value: "cuci" },
+    { title: "Siap Diambil", data: siapDiambil, value: "siap" },
+    { title: "Proses Pengantaran", data: prosesPengantaran, value: "antar" },
+  ];
+
+  const activeMobileData =
+    statusList.find((status) => status.value === mobileView)?.data || [];
 
   if (loading) return <p className="text-center">Memuat data order aktif...</p>;
   if (error) return <p className="text-center text-destructive">{error}</p>;
 
+  if (transaksi.length === 0) {
+    return (
+      <div className="px-4">
+        <h1 className="text-3xl font-bold mb-4">Proses Cucian</h1>
+        <Input
+          placeholder="Cari invoice, nama, atau nomor HP pelanggan..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="mb-4"
+        />
+        <EmptyState
+          icon={<ClipboardList className="h-16 w-16" />}
+          title="Tidak Ada Order Aktif"
+          description="Semua cucian sudah selesai atau belum ada transaksi baru yang masuk."
+        />
+      </div>
+    );
+  }
+
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-6 px-4">Proses Cucian</h1>
-      <div className="flex flex-col md:flex-row -mx-4">
-        <KanbanColumn
-          title="Diterima"
-          transactions={diterima}
-          onUpdateStatus={handleUpdateStatus}
-          onSelesaikan={handleSelesaikan}
+    <div className="h-full flex flex-col">
+      <div className="px-4 shrink-0">
+        <h1 className="text-3xl font-bold mb-4">Proses Cucian</h1>
+        <Input
+          placeholder="Cari invoice, nama, atau nomor HP pelanggan..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="mb-4"
         />
-        <Separator orientation="vertical" className="h-auto hidden md:block" />
-        <KanbanColumn
-          title="Proses Cuci"
-          transactions={prosesCuci}
-          onUpdateStatus={handleUpdateStatus}
-          onSelesaikan={handleSelesaikan}
-        />
-        <Separator orientation="vertical" className="h-auto hidden md:block" />
-        <KanbanColumn
-          title="Siap Diambil"
-          transactions={siapDiambil}
-          onUpdateStatus={handleUpdateStatus}
-          onSelesaikan={handleSelesaikan}
-        />
+      </div>
+
+      <div className="md:hidden px-4">
+        <Select value={mobileView} onValueChange={setMobileView}>
+          <SelectTrigger>
+            <SelectValue placeholder="Pilih Status..." />
+          </SelectTrigger>
+          <SelectContent>
+            {statusList.map((status) => (
+              <SelectItem key={status.value} value={status.value}>
+                {status.title} ({status.data.length})
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <div className="mt-4 space-y-4">
+          {activeMobileData.length > 0 ? (
+            activeMobileData.map((tx) => (
+              <TransaksiCard
+                key={tx.id}
+                transaksi={tx}
+                onUpdateStatus={handleUpdateStatus}
+                onSelesaikan={handleSelesaikan}
+              />
+            ))
+          ) : (
+            <p className="text-center text-muted-foreground py-8">
+              Tidak ada order di status ini.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Tampilan untuk Desktop (Kanban View) - tidak berubah */}
+      <div className="hidden md:flex flex-row -mx-4 flex-grow">
+        {statusList.map((status) => (
+          <React.Fragment key={status.value}>
+            <KanbanColumn
+              title={status.title}
+              transactions={status.data}
+              onUpdateStatus={handleUpdateStatus}
+              onSelesaikan={handleSelesaikan}
+            />
+            {/* [FIX] Jangan tampilkan separator di kolom terakhir */}
+            {status.value !== "antar" && (
+              <Separator orientation="vertical" className="h-auto" />
+            )}
+          </React.Fragment>
+        ))}
       </div>
 
       <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>

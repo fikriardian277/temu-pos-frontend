@@ -20,6 +20,7 @@ import {
   DialogTrigger,
   DialogDescription,
 } from "../ui/dialog";
+import { Textarea } from "../ui/textarea";
 
 function CustomerSection({
   selectedPelanggan,
@@ -38,6 +39,7 @@ function CustomerSection({
   const [newPelangganData, setNewPelangganData] = useState({
     nama: "",
     nomor_hp: "",
+    alamat: "",
   });
 
   const fetchPelanggan = useCallback(async () => {
@@ -74,6 +76,7 @@ function CustomerSection({
   const handleCreatePelanggan = async (e) => {
     e.preventDefault();
     try {
+      // 'newPelangganData' sekarang sudah berisi alamat
       const response = await api.post("/pelanggan", newPelangganData);
       onSelectPelanggan(response.data);
       setIsNewModalOpen(false);
@@ -81,6 +84,12 @@ function CustomerSection({
     } catch (err) {
       toast.error(err.response?.data?.message || "Gagal membuat pelanggan.");
     }
+  };
+
+  const openCreateModal = () => {
+    // [FIX] Reset state, termasuk alamat
+    setNewPelangganData({ nama: "", nomor_hp: "", alamat: "" });
+    setIsNewModalOpen(true);
   };
 
   return (
@@ -213,6 +222,16 @@ function CustomerSection({
                         value={newPelangganData.nomor_hp}
                         onChange={handleNewPelangganChange}
                         required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="alamat">Alamat (Opsional)</Label>
+                      <Textarea
+                        id="alamat"
+                        name="alamat"
+                        value={newPelangganData.alamat}
+                        onChange={handleNewPelangganChange}
+                        placeholder="Masukkan alamat lengkap untuk layanan antar-jemput..."
                       />
                     </div>
                     <DialogFooter>
