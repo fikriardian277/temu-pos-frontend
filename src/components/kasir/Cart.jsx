@@ -1,15 +1,20 @@
 // src/components/kasir/Cart.jsx
 
 import React from "react";
-import { Button } from "../ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Textarea } from "../ui/textarea";
+import { Button } from "@/components/ui/Button.jsx";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/Card.jsx";
+import { Textarea } from "@/components/ui/Textarea.jsx";
 import { Trash2 } from "lucide-react";
-import { Separator } from "../ui/separator";
-import { Checkbox } from "../ui/checkbox"; // <-- Jangan lupa import Checkbox
-import { Label } from "../ui/label"; // <-- Jangan lupa import Label
-import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
-import { Input } from "../ui/input";
+import { Separator } from "@/components/ui/Separator.jsx";
+import { Checkbox } from "@/components/ui/Checkbox.jsx";
+import { Label } from "@/components/ui/Label.jsx";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/Radio-group.jsx";
+import { Input } from "@/components/ui/Input.jsx";
 
 function Cart({
   cart,
