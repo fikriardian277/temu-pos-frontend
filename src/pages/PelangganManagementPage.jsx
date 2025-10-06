@@ -10,7 +10,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 // Impor komponen
-import { Button } from "@/components/ui/button.jsx";
+import { Button } from "@/components/ui/Button.jsx";
 import {
   Card,
   CardContent,

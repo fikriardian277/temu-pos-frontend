@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { MoreHorizontal, PlusCircle } from "lucide-react";
 
 // Impor semua komponen baru dari shadcn/ui
-import { Button } from "@/components/ui/button.jsx";
+import { Button } from "@/components/ui/Button.jsx";
 import { Input } from "@/components/ui/input.jsx";
 import { Label } from "@/components/ui/label.jsx";
 import {

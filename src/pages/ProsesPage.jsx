@@ -5,7 +5,7 @@ import api from "../api/axiosInstance";
 import { toast } from "sonner";
 
 // Impor komponen
-import { Button } from "@/components/ui/button.jsx";
+import { Button } from "@/components/ui/Button.jsx";
 
 import {
   Card,

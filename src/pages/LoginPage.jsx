@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import api from "@/api/axiosInstance";
 import { useAuth } from "@/context/AuthContext";
 import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button.jsx";
+import { Button } from "@/components/ui/Button.jsx";
 import {
   Card,
   CardContent,

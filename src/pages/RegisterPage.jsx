@@ -7,7 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Loader2 } from "lucide-react";
 
 // Impor komponen-komponen dari shadcn/ui
-import { Button } from "@/components/ui/button.jsx";
+import { Button } from "@/components/ui/Button.jsx";
 import {
   Card,
   CardContent,
