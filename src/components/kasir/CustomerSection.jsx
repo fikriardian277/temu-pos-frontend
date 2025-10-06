@@ -6,11 +6,16 @@ import { UserPlus, Star } from "lucide-react";
 import { toast } from "sonner";
 
 // Impor komponen dari shadcn/ui
-import { Button } from "../ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
-import { Badge } from "../ui/badge";
+import { Button } from "@/components/ui/Button.jsx";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/Card.jsx";
+import { Input } from "@/components/ui/Input.jsx";
+import { Label } from "@/components/ui/Label.jsx";
+import { Badge } from "@/components/ui/Badge.jsx";
 import {
   Dialog,
   DialogContent,
@@ -19,8 +24,8 @@ import {
   DialogFooter,
   DialogTrigger,
   DialogDescription,
-} from "../ui/dialog";
-import { Textarea } from "../ui/textarea";
+} from "@/components/ui/Dialog.jsx";
+import { Textarea } from "@/components/ui/Textarea.jsx";
 
 function CustomerSection({
   selectedPelanggan,

@@ -4,23 +4,23 @@ import React, { useState, useEffect } from "react";
 import api from "../../api/axiosInstance";
 
 // Impor komponen-komponen dari shadcn/ui
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/Button.jsx";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-} from "../ui/card";
-import { Input } from "../ui/input";
-import { Label } from "../ui/label";
+} from "@/components/ui/Card.jsx";
+import { Input } from "@/components/ui/Input.jsx";
+import { Label } from "@/components/ui/Label.jsx";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "../ui/select";
+} from "@/components/ui/Select.jsx";
 
 function ServiceSelector({ onAddToCart }) {
   const [kategoriData, setKategoriData] = useState([]);
