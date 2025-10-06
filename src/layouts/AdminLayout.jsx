@@ -16,7 +16,7 @@ import {
 import { menuConfig } from "@/lib/menuConfig.jsx";
 
 // Komponen-komponen dari shadcn/ui
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button.jsx";
 import {
   DropdownMenu,
   DropdownMenuContent,

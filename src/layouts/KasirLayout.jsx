@@ -8,7 +8,7 @@ import { menuConfig } from "@/lib/menuConfig.jsx";
 import { LogOut, UserCircle, Sun, Moon } from "lucide-react";
 
 // Impor komponen-komponen dari shadcn/ui
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button.jsx";
 import {
   DropdownMenu,
   DropdownMenuContent,
