@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import { useReactToPrint } from "react-to-print";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/ui/Button.jsx";
 import Struk from "./Struk";
 import { Printer } from "lucide-react";
 
