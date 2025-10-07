@@ -78,7 +78,7 @@ function KasirLayout() {
         </div>
         <nav className="flex-grow px-2 py-4">
           <ul className="space-y-1">
-            {navItems.map((item) => (
+            {navItems?.map((item) => (
               <li key={item.to}>
                 <NavLink to={item.to}>
                   {({ isActive }) => (

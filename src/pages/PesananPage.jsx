@@ -151,7 +151,7 @@ function PesananPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Semua Cabang</SelectItem>
-                {cabangs.map((c) => (
+                {cabangs?.map((c) => (
                   <SelectItem key={c.id} value={String(c.id)}>
                     {c.nama_cabang}
                   </SelectItem>
@@ -197,7 +197,7 @@ function PesananPage() {
                     </TableCell>
                   </TableRow>
                 ) : transaksis.length > 0 ? (
-                  transaksis.map((tx) => (
+                  transaksis?.map((tx) => (
                     <TableRow key={tx.id}>
                       <TableCell className="font-mono font-semibold">
                         {tx.kode_invoice}

@@ -253,7 +253,7 @@ function UserManagementPage() {
                         <SelectValue placeholder="Pilih cabang" />
                       </SelectTrigger>
                       <SelectContent>
-                        {cabangs.map((cabang) => (
+                        {cabangs?.map((cabang) => (
                           <SelectItem key={cabang.id} value={String(cabang.id)}>
                             {cabang.nama_cabang}
                           </SelectItem>
@@ -299,7 +299,7 @@ function UserManagementPage() {
                   </TableCell>
                 </TableRow>
               ) : filteredUsers.length > 0 ? (
-                filteredUsers.map((user) => (
+                filteredUsers?.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">
                       {user.nama_lengkap}

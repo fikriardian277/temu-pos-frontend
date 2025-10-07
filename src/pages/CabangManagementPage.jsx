@@ -225,7 +225,7 @@ function CabangManagementPage() {
                       </TableCell>
                     </TableRow>
                   ) : (
-                    cabangs.map((cabang) => (
+                    cabangs?.map((cabang) => (
                       <TableRow key={cabang.id}>
                         <TableCell className="font-medium">
                           {cabang.nama_cabang}

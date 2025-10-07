@@ -111,7 +111,7 @@ function ServiceSelector({ onAddToCart }) {
                 <SelectValue placeholder="-- Pilih Kategori --" />
               </SelectTrigger>
               <SelectContent>
-                {kategoriData.map((k) => (
+                {kategoriData?.map((k) => (
                   <SelectItem key={k.id} value={String(k.id)}>
                     {k.nama_kategori}
                   </SelectItem>
@@ -132,7 +132,7 @@ function ServiceSelector({ onAddToCart }) {
                 <SelectValue placeholder="-- Pilih Layanan --" />
               </SelectTrigger>
               <SelectContent>
-                {layananList.map((l) => (
+                {layananList?.map((l) => (
                   <SelectItem key={l.id} value={String(l.id)}>
                     {l.nama_layanan}
                   </SelectItem>
@@ -153,7 +153,7 @@ function ServiceSelector({ onAddToCart }) {
                 <SelectValue placeholder="-- Pilih Paket --" />
               </SelectTrigger>
               <SelectContent>
-                {paketList.map((p) => (
+                {paketList?.map((p) => (
                   <SelectItem key={p.id} value={String(p.id)}>
                     {p.nama_paket}
                   </SelectItem>

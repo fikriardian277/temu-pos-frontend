@@ -175,7 +175,7 @@ function LayananManagementPage() {
       </div>
 
       <div className="space-y-6">
-        {kategoriData.map((kategori) => (
+        {kategoriData?.map((kategori) => (
           <Card key={kategori.id}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-2xl text-primary">
@@ -220,7 +220,7 @@ function LayananManagementPage() {
                     </div>
                   </div>
                   <div className="pl-4 mt-3 space-y-3 border-l-2 border-border">
-                    {layanan.Pakets.map((paket) => (
+                    {layanan.pakets?.map((paket) => (
                       <div
                         key={paket.id}
                         className="flex justify-between items-center pl-2"

@@ -132,7 +132,7 @@ const Struk = ({ transaksi }) => {
         }}
       >
         {Array.isArray(Pakets) && Pakets.length > 0 ? (
-          Pakets.map((item, idx) => (
+          Pakets?.map((item, idx) => (
             <div key={item?.id ?? idx} style={{ marginBottom: 6 }}>
               <div style={{ fontWeight: 600 }}>{`${
                 item?.Layanan?.nama_layanan || ""

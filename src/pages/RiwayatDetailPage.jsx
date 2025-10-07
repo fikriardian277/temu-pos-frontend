@@ -287,7 +287,7 @@ export default function RiwayatDetailPage() {
                   <tbody>
                     {Array.isArray(transaksi.Pakets) &&
                     transaksi.Pakets.length > 0 ? (
-                      transaksi.Pakets.map((p) => (
+                      transaksi.Pakets?.map((p) => (
                         <tr
                           key={p.id || `${p.nama_paket}-${Math.random()}`}
                           className="border-t"

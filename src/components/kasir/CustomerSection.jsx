@@ -259,7 +259,7 @@ function CustomerSection({
             {pelangganList.length > 0 && (
               <div className="absolute z-10 w-full mt-1">
                 <Card className="max-h-60 overflow-y-auto">
-                  {pelangganList.map((pelanggan) => (
+                  {pelangganList?.map((pelanggan) => (
                     <div
                       key={pelanggan.id}
                       onClick={() => {

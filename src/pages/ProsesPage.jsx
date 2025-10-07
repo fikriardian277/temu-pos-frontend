@@ -162,7 +162,7 @@ const KanbanColumn = ({
       </div>
       <div className="h-[calc(100vh-12rem)] overflow-y-auto px-2 pt-2">
         {transactions.length > 0 ? (
-          transactions.map((tx) => (
+          transactions?.map((tx) => (
             <TransaksiCard
               key={tx.id}
               transaksi={tx}
@@ -217,8 +217,9 @@ function ProsesPage() {
       const { data } = await api.put(`/transaksi/${tx.id}/status`, {
         status: newStatus,
       });
+
       setTransaksi((prev) =>
-        prev.map((t) => (t.id === tx.id ? { ...t, ...data.data } : t))
+        prev?.map((t) => (t.id === tx.id ? { ...t, ...data.data } : t))
       );
 
       // Kirim notif WA jika status berubah menjadi 'Siap Diambil'
@@ -354,7 +355,7 @@ function ProsesPage() {
             <SelectValue placeholder="Pilih Status..." />
           </SelectTrigger>
           <SelectContent>
-            {statusList.map((status) => (
+            {statusList?.map((status) => (
               <SelectItem key={status.value} value={status.value}>
                 {status.title} ({status.data.length})
               </SelectItem>
@@ -364,7 +365,7 @@ function ProsesPage() {
 
         <div className="mt-4 space-y-4">
           {activeMobileData.length > 0 ? (
-            activeMobileData.map((tx) => (
+            activeMobileData?.map((tx) => (
               <TransaksiCard
                 key={tx.id}
                 transaksi={tx}
@@ -382,7 +383,7 @@ function ProsesPage() {
 
       {/* Tampilan untuk Desktop (Kanban View) - tidak berubah */}
       <div className="hidden md:flex flex-row -mx-4 flex-grow">
-        {statusList.map((status) => (
+        {statusList?.map((status) => (
           <React.Fragment key={status.value}>
             <KanbanColumn
               title={status.title}

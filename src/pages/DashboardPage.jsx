@@ -146,7 +146,7 @@ const OwnerDashboard = ({ data }) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.recentTransactions.map((tx) => (
+                {data.recentTransactions?.map((tx) => (
                   <TableRow
                     key={tx.id}
                     onClick={() => navigate(`/riwayat/${tx.kode_invoice}`)}
@@ -229,7 +229,7 @@ const KasirDashboard = ({ data }) => {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {data.recentTransactions.map((tx) => (
+                {data.recentTransactions?.map((tx) => (
                   <TableRow
                     key={tx.id}
                     onClick={() => navigate(`/riwayat/${tx.kode_invoice}`)}

@@ -114,7 +114,7 @@ function KasirPage() {
     if (existingItem) {
       const newJumlah = existingItem.jumlah + jumlahFinal;
       setCart(
-        cart.map((item) =>
+        cart?.map((item) =>
           item.id === itemToAdd.id
             ? { ...item, jumlah: newJumlah, subtotal: newJumlah * item.harga }
             : item
@@ -150,7 +150,7 @@ function KasirPage() {
       catatan,
       status_pembayaran: statusPembayaran,
       metode_pembayaran: statusPembayaran === "Lunas" ? metodePembayaran : null,
-      items: regularItems.map((item) => ({
+      items: regularItems?.map((item) => ({
         id_paket: item.id,
         jumlah: item.jumlah,
       })),

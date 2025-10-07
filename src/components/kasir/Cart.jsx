@@ -58,7 +58,7 @@ function Cart({
             <Label>Keranjang</Label>
             <div className="mt-2 space-y-2 max-h-48 overflow-y-auto pr-2">
               {cart.length > 0 ? (
-                cart.map((item) => (
+                cart?.map((item) => (
                   <div
                     key={item.id}
                     className="flex justify-between items-center text-sm p-2 bg-muted rounded-md"

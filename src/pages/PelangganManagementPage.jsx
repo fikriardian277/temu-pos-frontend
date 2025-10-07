@@ -232,7 +232,7 @@ function PelangganManagementPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pelanggans.map((p) => (
+                  {pelanggans?.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium text-primary">
                         {p.nama}
@@ -391,7 +391,7 @@ function PelangganManagementPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {cabangs.map((c) => (
+                          {cabangs?.map((c) => (
                             <SelectItem key={c.id} value={String(c.id)}>
                               {c.nama_cabang}
                             </SelectItem>

@@ -83,7 +83,7 @@ function AdminLayout() {
 
       <nav className="flex-grow px-2 py-4 overflow-y-auto">
         <ul className="space-y-1">
-          {navItems.map((item) =>
+          {navItems?.map((item) =>
             item.isHeader ? (
               <li
                 key={item.key}

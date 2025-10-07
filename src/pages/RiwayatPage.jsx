@@ -147,7 +147,7 @@ function RiwayatPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {transaksis.map((tx) => (
+                  {transaksis?.map((tx) => (
                     <TableRow key={tx.id}>
                       <TableCell className="font-mono font-semibold">
                         {tx.kode_invoice}

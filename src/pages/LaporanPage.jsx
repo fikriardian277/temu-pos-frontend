@@ -178,7 +178,7 @@ function LaporanPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="semua">Semua Cabang</SelectItem>
-                  {cabangList.map((cabang) => (
+                  {cabangList?.map((cabang) => (
                     <SelectItem key={cabang.id} value={String(cabang.id)}>
                       {cabang.nama_cabang}
                     </SelectItem>
@@ -285,12 +285,14 @@ function LaporanPage() {
                       outerRadius={80}
                       label
                     >
-                      {reportData.summary.paymentMethods.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={PIE_COLORS[index % PIE_COLORS.length]}
-                        />
-                      ))}
+                      {reportData.summary.paymentMethods?.map(
+                        (entry, index) => (
+                          <Cell
+                            key={`cell-${index}`}
+                            fill={PIE_COLORS[index % PIE_COLORS.length]}
+                          />
+                        )
+                      )}
                     </Pie>
                     <Tooltip
                       contentStyle={{
@@ -318,7 +320,7 @@ function LaporanPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {reportData.summary.topProduk.map((p, i) => (
+                      {reportData.summary.topProduk?.map((p, i) => (
                         <TableRow key={i}>
                           <TableCell>{p.namaPaket}</TableCell>
                           <TableCell className="text-right">
@@ -339,7 +341,7 @@ function LaporanPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {reportData.summary.topCustomers.map((c, i) => (
+                      {reportData.summary.topCustomers?.map((c, i) => (
                         <TableRow key={i}>
                           <TableCell>{c.namaPelanggan}</TableCell>
                           <TableCell className="text-right">
