@@ -44,16 +44,10 @@ const Struk = React.forwardRef(({ transaksi }, ref) => {
 
       {/* Info transaksi */}
       <div className="space-y-[2px]">
-        <hr className="border-dashed border-t border-black my-1" />
-
-        {/* Nama Pelanggan - Tampil Besar di Tengah */}
-        <div className="text-center my-1">
-          <span className="font-bold text-[14px] uppercase">
-            {transaksi.Pelanggan?.nama || "-"}
-          </span>
+        <div className="flex justify-between">
+          <span>Invoice:</span>
+          <span>{transaksi.kode_invoice}</span>
         </div>
-
-        <hr className="border-dashed border-t border-black my-1" />
         <div className="flex justify-between">
           <span>Tanggal:</span>
           <span>
@@ -67,10 +61,16 @@ const Struk = React.forwardRef(({ transaksi }, ref) => {
           <span>Kasir:</span>
           <span>{transaksi.Pengguna?.nama_lengkap || "-"}</span>
         </div>
-        <div className="flex justify-between">
-          <span>Pelanggan:</span>
-          <span>{transaksi.Pelanggan?.nama || "-"}</span>
+        <hr className="border-dashed border-t border-black my-1" />
+
+        {/* Nama Pelanggan - Tampil Besar di Tengah */}
+        <div className="text-center my-1">
+          <span className="font-bold text-[13px] uppercase">
+            {transaksi.Pelanggan?.nama || "-"}
+          </span>
         </div>
+
+        <hr className="border-dashed border-t border-black my-1" />
       </div>
 
       <hr className="border-dashed border-t border-black my-1" />
