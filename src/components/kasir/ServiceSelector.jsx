@@ -128,10 +128,8 @@ function ServiceSelector({
             <Input
               type="number"
               value={jumlah}
-              onChange={(e) =>
-                // <-- DIUBAH AGAR BISA 0
-                setJumlah(parseInt(e.target.value) || 0)
-              }
+              onChange={(e) => setJumlah(parseInt(e.target.value) || 0)}
+              onFocus={(e) => e.target.select()} // <-- TAMBAHKAN BARIS INI
               disabled={!selectedPaket}
             />
           </div>
