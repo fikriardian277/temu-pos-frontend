@@ -87,6 +87,19 @@ const Struk = React.forwardRef(({ transaksi }, ref) => {
         </div>
       ))}
 
+      {/* Tampilkan Biaya Upgrade Membership jika ada */}
+      {transaksi.upgrade_member && transaksi.biaya_membership_upgrade > 0 && (
+        <div className="mb-[3px]">
+          <p className="font-semibold">Biaya Upgrade Membership</p>
+          <div className="flex justify-between">
+            <span>
+              1 pcs × Rp{formatRupiah(transaksi.biaya_membership_upgrade)}
+            </span>
+            <span>Rp{formatRupiah(transaksi.biaya_membership_upgrade)}</span>
+          </div>
+        </div>
+      )}
+
       {/* [FIX] Tampilkan Biaya Upgrade Membership jika ada (SECARA TERPISAH DARI ITEM) */}
       {transaksi.upgrade_member && transaksi.biaya_membership_upgrade > 0 && (
         <div className="mb-[3px]">
