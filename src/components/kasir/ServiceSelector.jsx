@@ -28,7 +28,7 @@ function ServiceSelector({
   const [selectedKategori, setSelectedKategori] = useState("");
   const [selectedLayanan, setSelectedLayanan] = useState("");
   const [selectedPaket, setSelectedPaket] = useState("");
-  const [jumlah, setJumlah] = useState(0); // <-- DIUBAH DARI 1 MENJADI 0
+  const [jumlah, setJumlah] = useState(0);
 
   const handleKategoriSelect = (kategoriId) => {
     setSelectedKategori(kategoriId);
@@ -51,7 +51,7 @@ function ServiceSelector({
     if (paketToAdd) {
       onAddToCart(paketToAdd, jumlah);
       setSelectedPaket("");
-      setJumlah(0); // <-- DIUBAH DARI 1 MENJADI 0
+      setJumlah(0);
     }
   };
 
@@ -128,8 +128,11 @@ function ServiceSelector({
             <Input
               type="number"
               value={jumlah}
-              onChange={(e) => setJumlah(parseInt(e.target.value) || 0)}
-              onFocus={(e) => e.target.select()} // <-- TAMBAHKAN BARIS INI
+              // [FIX] Gunakan parseFloat untuk mendukung desimal
+              onChange={(e) => setJumlah(parseFloat(e.target.value) || 0)}
+              onFocus={(e) => e.target.select()}
+              // [FIX] Tambahkan 'step' untuk mengizinkan input desimal di browser
+              step="0.1"
               disabled={!selectedPaket}
             />
           </div>
@@ -137,7 +140,7 @@ function ServiceSelector({
 
         <Button
           onClick={handleAddToCartClick}
-          disabled={!selectedPaket || jumlah <= 0} // <-- DIUBAH AGAR MEMVALIDASI JUMLAH > 0
+          disabled={!selectedPaket || jumlah <= 0}
           className="w-full"
         >
           Tambah ke Keranjang
