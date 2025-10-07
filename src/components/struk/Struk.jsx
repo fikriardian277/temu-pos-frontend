@@ -44,10 +44,16 @@ const Struk = React.forwardRef(({ transaksi }, ref) => {
 
       {/* Info transaksi */}
       <div className="space-y-[2px]">
-        <div className="flex justify-between">
-          <span>Invoice:</span>
-          <span>{transaksi.kode_invoice}</span>
+        <hr className="border-dashed border-t border-black my-1" />
+
+        {/* Nama Pelanggan - Tampil Besar di Tengah */}
+        <div className="text-center my-1">
+          <span className="font-bold text-[14px] uppercase">
+            {transaksi.Pelanggan?.nama || "-"}
+          </span>
         </div>
+
+        <hr className="border-dashed border-t border-black my-1" />
         <div className="flex justify-between">
           <span>Tanggal:</span>
           <span>
