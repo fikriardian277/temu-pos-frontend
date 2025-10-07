@@ -14,7 +14,12 @@ function PrintStrukButton({ componentRef }) {
   });
 
   return (
-    <Button onClick={handlePrint} variant="outline" className="w-full">
+    <Button
+      onClick={handlePrint}
+      variant="outline"
+      className="w-full"
+      disabled={!componentRef?.current}
+    >
       <Printer className="mr-2 h-4 w-4" />
       Cetak Struk
     </Button>

@@ -442,7 +442,10 @@ function KasirPage() {
             </div>
             <div className="mt-6 grid grid-cols-2 gap-4">
               {/* Kirim penanda (ref) ke tombol Print */}
-              <PrintStrukButton componentRef={strukRef} />
+              <PrintStrukButton
+                componentRef={strukRef}
+                disabled={!detailTransaksiSukses || !strukRef.current}
+              />
               <Button
                 onClick={handleKirimWA}
                 variant="outline"
