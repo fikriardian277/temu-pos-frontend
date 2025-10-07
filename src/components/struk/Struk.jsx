@@ -11,7 +11,7 @@ const Struk = React.forwardRef(({ transaksi }, ref) => {
 
   const isPoinSystemActive = pengaturan?.skema_poin_aktif !== "nonaktif";
 
-  // [FIX] Hitung ulang subtotal item dari array Pakets untuk memastikan akurasi
+  // Hitung ulang subtotal HANYA dari item paket.
   const subtotalItems =
     transaksi.Pakets?.reduce(
       (total, item) => total + (item.DetailTransaksi?.subtotal ?? 0),
@@ -87,22 +87,28 @@ const Struk = React.forwardRef(({ transaksi }, ref) => {
         </div>
       ))}
 
+      {/* [FIX] Tampilkan Biaya Upgrade Membership jika ada (SECARA TERPISAH DARI ITEM) */}
+      {transaksi.upgrade_member && transaksi.biaya_membership_upgrade > 0 && (
+        <div className="mb-[3px]">
+          <p className="font-semibold">Biaya Upgrade Membership</p>
+          <div className="flex justify-between">
+            <span>
+              1 pcs × Rp{formatRupiah(transaksi.biaya_membership_upgrade)}
+            </span>
+            <span>Rp{formatRupiah(transaksi.biaya_membership_upgrade)}</span>
+          </div>
+        </div>
+      )}
+
       <hr className="border-dashed border-t border-black my-1" />
 
       {/* Subtotal dan total */}
       <div className="space-y-[2px]">
+        {/* [FIX] Gunakan variabel subtotal_transaksi dari backend untuk akurasi */}
         <div className="flex justify-between">
-          <span>Subtotal Item</span>
-          <span>Rp{formatRupiah(subtotalItems)}</span>
+          <span>Subtotal</span>
+          <span>Rp{formatRupiah(transaksi.subtotal)}</span>
         </div>
-
-        {/* [FIX] Tampilkan Biaya Upgrade Membership jika ada */}
-        {transaksi.biaya_membership_upgrade > 0 && (
-          <div className="flex justify-between">
-            <span>Upgrade Member</span>
-            <span>Rp{formatRupiah(transaksi.biaya_membership_upgrade)}</span>
-          </div>
-        )}
 
         {/* [FIX] Tampilkan Biaya Layanan Antar/Jemput jika ada */}
         {transaksi.biaya_layanan > 0 && (
