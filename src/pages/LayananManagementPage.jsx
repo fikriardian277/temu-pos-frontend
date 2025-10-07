@@ -196,7 +196,7 @@ function LayananManagementPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4 pt-4">
-              {kategori.Layanans.map((layanan) => (
+              {kategori.layanans?.map((layanan) => (
                 <div
                   key={layanan.id}
                   className="bg-background p-4 rounded-md border"
