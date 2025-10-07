@@ -11,7 +11,7 @@ import {
 
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import { ThemeProvider } from "./context/ThemeContext";
-import { Toaster } from "@/components/ui/sonner";
+import { Toaster } from "@/components/ui/Sonner.jsx";
 
 import { jwtDecode } from "jwt-decode";
 import "antd/dist/reset.css";
