@@ -1,7 +1,7 @@
 // src/components/VariableBadge.jsx
 
 import React from "react";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/Badge";
 
 /**
  * Komponen Badge yang bisa diklik untuk MENYISIPKAN teks variabel.

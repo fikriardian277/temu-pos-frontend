@@ -22,17 +22,17 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/components/ui/dialog.jsx";
-import { Badge } from "@/components/ui/badge.jsx";
-import { Separator } from "@/components/ui/separator.jsx";
-import { Input } from "@/components/ui/input.jsx";
+} from "@/components/ui/Dialog.jsx";
+import { Badge } from "@/components/ui/Badge.jsx";
+import { Separator } from "@/components/ui/Separator.jsx";
+import { Input } from "@/components/ui/Input.jsx";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select.jsx";
+} from "@/components/ui/Select.jsx";
 import {
   WashingMachine,
   Check,

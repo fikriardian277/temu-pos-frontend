@@ -15,14 +15,14 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/Card.jsx";
-import { Input } from "@/components/ui/input.jsx";
-import { Label } from "@/components/ui/label.jsx";
+import { Input } from "@/components/ui/Input.jsx";
+import { Label } from "@/components/ui/Label.jsx";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/components/ui/tabs.jsx";
+} from "@/components/ui/Tabs.jsx";
 
 function InfoProfil({ initialData, onUpdate }) {
   const [formData, setFormData] = useState({

@@ -18,14 +18,14 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/Card.jsx";
-import { Input } from "@/components/ui/input.jsx";
+import { Input } from "@/components/ui/Input.jsx";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select.jsx";
+} from "@/components/ui/Select.jsx";
 import {
   Table,
   TableHeader,
@@ -33,14 +33,14 @@ import {
   TableHead,
   TableBody,
   TableCell,
-} from "@/components/ui/table.jsx";
-import { Badge } from "@/components/ui/badge.jsx";
+} from "@/components/ui/Table.jsx";
+import { Badge } from "@/components/ui/Badge.jsx";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu.jsx";
+} from "@/components/ui/Dropdown-menu.jsx";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -51,7 +51,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog.jsx";
+} from "@/components/ui/Alert-dialog.jsx";
 import {
   Dialog,
   DialogContent,
@@ -59,9 +59,9 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from "@/components/ui/dialog.jsx";
-import { Label } from "@/components/ui/label.jsx";
-import { Textarea } from "@/components/ui/textarea.jsx";
+} from "@/components/ui/Dialog.jsx";
+import { Label } from "@/components/ui/Label.jsx";
+import { Textarea } from "@/components/ui/Textarea.jsx";
 import {
   Form,
   FormControl,
@@ -69,7 +69,7 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form.jsx";
+} from "@/components/ui/Form.jsx";
 import { MoreHorizontal, Edit, Trash2, Users2, PlusCircle } from "lucide-react";
 import EmptyState from "@/components/ui/EmptyState.jsx";
 

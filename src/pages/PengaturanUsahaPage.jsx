@@ -14,18 +14,18 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/Card.jsx";
-import { Input } from "@/components/ui/input.jsx";
-import { Label } from "@/components/ui/label.jsx";
-import { Checkbox } from "@/components/ui/checkbox.jsx";
-import { Textarea } from "@/components/ui/textarea.jsx";
+import { Input } from "@/components/ui/Input.jsx";
+import { Label } from "@/components/ui/Label.jsx";
+import { Checkbox } from "@/components/ui/Checkbox.jsx";
+import { Textarea } from "@/components/ui/Textarea.jsx";
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/components/ui/tabs.jsx";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group.jsx";
-import { Separator } from "@/components/ui/separator.jsx";
+} from "@/components/ui/Tabs.jsx";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/Radio-group.jsx";
+import { Separator } from "@/components/ui/Separator.jsx";
 import VariableBadge from "@/components/VariableBadge";
 
 import {
@@ -37,7 +37,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog.jsx";
+} from "@/components/ui/Alert-dialog.jsx";
 
 function PengaturanUsahaPage() {
   const { authState, login } = useAuth();

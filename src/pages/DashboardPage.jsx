@@ -30,9 +30,9 @@ import {
   TableHead,
   TableBody,
   TableCell,
-} from "@/components/ui/table.jsx";
+} from "@/components/ui/Table.jsx";
 import { Button } from "@/components/ui/Button.jsx";
-import { Badge } from "@/components/ui/badge.jsx";
+import { Badge } from "@/components/ui/Badge.jsx";
 import {
   ArrowUpRight,
   DollarSign,

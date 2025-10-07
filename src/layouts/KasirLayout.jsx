@@ -16,7 +16,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/ui/Dropdown-menu";
 
 // Komponen untuk item navigasi di bottom bar (HP)
 const NavItem = ({ to, icon, label, isMainButton = false }) => {

@@ -13,14 +13,14 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/Card.jsx";
-import { Input } from "@/components/ui/input.jsx";
+import { Input } from "@/components/ui/Input.jsx";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select.jsx";
+} from "@/components/ui/Select.jsx";
 import {
   Table,
   TableHeader,
@@ -28,8 +28,8 @@ import {
   TableHead,
   TableBody,
   TableCell,
-} from "@/components/ui/table.jsx";
-import { Badge } from "@/components/ui/badge.jsx";
+} from "@/components/ui/Table.jsx";
+import { Badge } from "@/components/ui/Badge.jsx";
 import { Button } from "@/components/ui/Button.jsx";
 
 function PesananPage() {

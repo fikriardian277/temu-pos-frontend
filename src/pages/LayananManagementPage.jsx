@@ -14,15 +14,15 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/Card.jsx";
-import { Input } from "@/components/ui/input.jsx";
-import { Label } from "@/components/ui/label.jsx";
+import { Input } from "@/components/ui/Input.jsx";
+import { Label } from "@/components/ui/Label.jsx";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog.jsx";
+} from "@/components/ui/Dialog.jsx";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,13 +33,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog.jsx";
+} from "@/components/ui/Alert-dialog.jsx";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu.jsx";
+} from "@/components/ui/Dropdown-menu.jsx";
 
 // Komponen Aksi yang bisa dipakai ulang
 const ActionMenu = ({ onEdit, onDelete }) => (

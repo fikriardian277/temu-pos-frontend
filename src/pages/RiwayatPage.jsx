@@ -14,7 +14,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/Card.jsx";
-import { Input } from "@/components/ui/input.jsx";
+import { Input } from "@/components/ui/Input.jsx";
 import {
   Table,
   TableBody,
@@ -22,15 +22,15 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table.jsx";
-import { Badge } from "@/components/ui/badge.jsx";
+} from "@/components/ui/Table.jsx";
+import { Badge } from "@/components/ui/Badge.jsx";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-} from "@/components/ui/dialog.jsx";
+} from "@/components/ui/Dialog.jsx";
 import { Printer, MessageSquare, Loader2, History } from "lucide-react";
 
 import EmptyState from "@/components/ui/EmptyState.jsx";

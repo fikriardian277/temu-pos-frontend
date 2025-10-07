@@ -11,8 +11,8 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/Card.jsx";
-import { Input } from "@/components/ui/input.jsx";
-import { Label } from "@/components/ui/label.jsx";
+import { Input } from "@/components/ui/Input.jsx";
+import { Label } from "@/components/ui/Label.jsx";
 import {
   Table,
   TableHeader,
@@ -20,13 +20,13 @@ import {
   TableHead,
   TableBody,
   TableCell,
-} from "@/components/ui/table.jsx";
+} from "@/components/ui/Table.jsx";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu.jsx";
+} from "@/components/ui/Dropdown-menu.jsx";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,7 +37,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog.jsx";
+} from "@/components/ui/Alert-dialog.jsx";
 import {
   Dialog,
   DialogContent,
@@ -45,7 +45,7 @@ import {
   DialogTitle,
   DialogFooter,
   DialogTrigger,
-} from "@/components/ui/dialog.jsx";
+} from "@/components/ui/Dialog.jsx";
 
 function CabangManagementPage() {
   const [cabangs, setCabangs] = useState([]);

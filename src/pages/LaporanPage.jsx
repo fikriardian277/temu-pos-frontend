@@ -24,8 +24,8 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/Card.jsx";
-import { Input } from "@/components/ui/input.jsx";
-import { Label } from "@/components/ui/label.jsx";
+import { Input } from "@/components/ui/Input.jsx";
+import { Label } from "@/components/ui/Label.jsx";
 import {
   Table,
   TableHeader,
@@ -33,14 +33,14 @@ import {
   TableHead,
   TableBody,
   TableCell,
-} from "@/components/ui/table.jsx";
+} from "@/components/ui/Table.jsx";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select.jsx";
+} from "@/components/ui/Select.jsx";
 
 // Komponen kartu statistik ringkas (tidak berubah)
 const StatCard = ({ title, value, subtext }) => (

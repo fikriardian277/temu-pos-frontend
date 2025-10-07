@@ -11,7 +11,7 @@ import PrintStrukButton from "../components/struk/PrintStrukButton"; // Jangan l
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { CheckCircle } from "lucide-react";
-import { Textarea } from "@/components/ui/textarea.jsx";
+import { Textarea } from "@/components/ui/Textarea.jsx";
 
 import { Button } from "@/components/ui/Button.jsx";
 import {
@@ -28,9 +28,9 @@ import {
   DialogTitle,
   DialogFooter,
   DialogDescription,
-} from "@/components/ui/dialog.jsx";
-import { Input } from "@/components/ui/input.jsx";
-import { Label } from "@/components/ui/label.jsx";
+} from "@/components/ui/Dialog.jsx";
+import { Input } from "@/components/ui/Input.jsx";
+import { Label } from "@/components/ui/Label.jsx";
 
 function KasirPage() {
   const location = useLocation();

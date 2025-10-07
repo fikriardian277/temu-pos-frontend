@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/Card.jsx";
 import { Button } from "@/components/ui/Button.jsx";
 import { Loader2, Printer, MessageSquare } from "lucide-react";
-import { Badge } from "@/components/ui/badge.jsx";
+import { Badge } from "@/components/ui/Badge.jsx";
 
 const formatRupiah = (value) => {
   if (value == null) return "0";
