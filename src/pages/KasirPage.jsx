@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "../api/axiosInstance";
 import CustomerSection from "../components/kasir/CustomerSection";
-import ServiceSelector from "../components/kasir/ServiceSelector";
+import ServiceSelector from "../components/kasir/ServiceSelector.jsx";
 import Cart from "../components/kasir/Cart";
 import Struk from "../components/struk/Struk";
 import PrintStrukButton from "../components/struk/PrintStrukButton"; // Jangan lupa import ini
@@ -60,6 +60,11 @@ function KasirPage() {
   const [transaksiSuccess, setTransaksiSuccess] = useState(null);
   const [detailTransaksiSukses, setDetailTransaksiSukses] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  const [allKategoriData, setAllKategoriData] = useState([]); // Untuk menyimpan data mentah dari API
+  const [kategoriOptions, setKategoriOptions] = useState([]); // Untuk dropdown Kategori
+  const [layananOptions, setLayananOptions] = useState([]); // Untuk dropdown Layanan
+  const [paketOptions, setPaketOptions] = useState([]); // Untuk dropdown Paket
 
   const [isPoinModalOpen, setIsPoinModalOpen] = useState(false);
   const [formError, setFormError] = useState("");
@@ -301,6 +306,46 @@ function KasirPage() {
     setIsAlamatModalOpen(true);
   };
 
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const response = await api.get("/layanan"); // Endpoint yang mengembalikan Kategori > Layanan > Paket
+        setAllKategoriData(response.data);
+        setKategoriOptions(response.data); // Langsung set untuk pilihan Kategori awal
+      } catch (error) {
+        toast.error("Gagal memuat data layanan & paket.");
+      }
+    };
+    fetchServices();
+  }, []);
+
+  const handleKategoriChange = (kategoriId) => {
+    const selectedKategori = allKategoriData.find(
+      (k) => k.id === parseInt(kategoriId)
+    );
+
+    if (selectedKategori) {
+      setLayananOptions(selectedKategori.layanans || []);
+    } else {
+      setLayananOptions([]);
+    }
+    // Reset pilihan paket setiap kali kategori berubah
+    setPaketOptions([]);
+  };
+
+  const handleLayananChange = (layananId) => {
+    // Cari layanan yang dipilih di dalam data yang kita punya
+    for (const kategori of allKategoriData) {
+      const selectedLayanan = kategori.layanans?.find(
+        (l) => l.id === parseInt(layananId)
+      );
+      if (selectedLayanan) {
+        setPaketOptions(selectedLayanan.pakets || []);
+        break; // Hentikan loop jika sudah ketemu
+      }
+    }
+  };
+
   // [BARU] Fungsi untuk mengirim update alamat ke backend
   const handleUpdateAlamat = async (e) => {
     e.preventDefault();
@@ -334,7 +379,14 @@ function KasirPage() {
                 onOpenPoinModal={() => setIsPoinModalOpen(true)}
                 pengaturan={authState.pengaturan}
               />
-              <ServiceSelector onAddToCart={addItemToCart} />
+              <ServiceSelector
+                kategoriOptions={kategoriOptions}
+                layananOptions={layananOptions}
+                paketOptions={paketOptions}
+                onKategoriChange={handleKategoriChange}
+                onLayananChange={handleLayananChange}
+                onAddToCart={addItemToCart}
+              />
             </div>
             <div className="lg:w-5/12">
               <Cart

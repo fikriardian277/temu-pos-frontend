@@ -1,10 +1,4 @@
-// src/components/kasir/ServiceSelector.jsx
-
-import React, { useState, useEffect } from "react";
-import api from "../../api/axiosInstance";
-
-// Impor komponen-komponen dari shadcn/ui
-import { Button } from "@/components/ui/Button.jsx";
+import React, { useState } from "react";
 import {
   Card,
   CardContent,
@@ -21,141 +15,111 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select.jsx";
+import { Button } from "@/components/ui/Button.jsx";
 
-function ServiceSelector({ onAddToCart }) {
-  const [kategoriData, setKategoriData] = useState([]);
-  const [loading, setLoading] = useState(true);
+// --- TERIMA PROPS BARU DI SINI ---
+function ServiceSelector({
+  kategoriOptions,
+  layananOptions,
+  paketOptions,
+  onKategoriChange,
+  onLayananChange,
+  onAddToCart,
+}) {
+  const [selectedKategori, setSelectedKategori] = useState("");
+  const [selectedLayanan, setSelectedLayanan] = useState("");
+  const [selectedPaket, setSelectedPaket] = useState("");
+  const [jumlah, setJumlah] = useState(1);
 
-  // State tunggal untuk menampung semua pilihan
-  const [selection, setSelection] = useState({
-    kategoriId: "",
-    layananId: "",
-    paketId: "",
-    jumlah: "",
-  });
-
-  useEffect(() => {
-    api
-      .get("/layanan")
-      .then((res) => setKategoriData(res.data))
-      .finally(() => setLoading(false));
-  }, []);
-
-  // Logika untuk mendapatkan daftar pilihan berdasarkan state
-  const layananList =
-    kategoriData.find((k) => k.id == selection.kategoriId)?.Layanans || [];
-  const paketList =
-    layananList.find((l) => l.id == selection.layananId)?.Pakets || [];
-
-  const handleSelectionChange = (name, value) => {
-    // Logika reset berantai
-    if (name === "kategoriId") {
-      setSelection({
-        kategoriId: value,
-        layananId: "",
-        paketId: "",
-        jumlah: "",
-      });
-    } else if (name === "layananId") {
-      setSelection((prev) => ({
-        ...prev,
-        layananId: value,
-        paketId: "",
-        jumlah: "",
-      }));
-    } else {
-      setSelection((prev) => ({ ...prev, [name]: value }));
-    }
+  const handleKategoriSelect = (kategoriId) => {
+    setSelectedKategori(kategoriId);
+    setSelectedLayanan(""); // Reset pilihan layanan
+    setSelectedPaket(""); // Reset pilihan paket
+    onKategoriChange(kategoriId); // Panggil fungsi dari parent
   };
 
-  const handleAdd = () => {
-    const paketToAdd = paketList.find((p) => p.id == selection.paketId);
-    if (paketToAdd && selection.jumlah > 0) {
-      onAddToCart(paketToAdd, parseFloat(selection.jumlah));
-      // Reset form ke kondisi awal, kecuali kategori
-      setSelection((prev) => ({
-        ...prev,
-        layananId: "",
-        paketId: "",
-        jumlah: "",
-      }));
-    }
+  const handleLayananSelect = (layananId) => {
+    setSelectedLayanan(layananId);
+    setSelectedPaket(""); // Reset pilihan paket
+    onLayananChange(layananId); // Panggil fungsi dari parent
   };
 
-  if (loading)
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Tambah Item</CardTitle>
-        </CardHeader>
-        <CardContent>Memuat layanan...</CardContent>
-      </Card>
+  const handleAddToCartClick = () => {
+    if (!selectedPaket || !jumlah) return;
+    const paketToAdd = paketOptions.find(
+      (p) => p.id === parseInt(selectedPaket)
     );
+    if (paketToAdd) {
+      onAddToCart(paketToAdd, jumlah);
+      // Reset form setelah ditambahkan
+      setSelectedPaket("");
+      setJumlah(1);
+    }
+  };
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Tambah Item</CardTitle>
+        <CardTitle>Pilih Layanan & Paket</CardTitle>
+        <CardDescription>
+          Pilih kategori, layanan, dan paket yang akan ditambahkan ke keranjang.
+        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label>Kategori</Label>
-            <Select
-              value={selection.kategoriId}
-              onValueChange={(value) =>
-                handleSelectionChange("kategoriId", value)
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="-- Pilih Kategori --" />
-              </SelectTrigger>
-              <SelectContent>
-                {kategoriData?.map((k) => (
-                  <SelectItem key={k.id} value={String(k.id)}>
-                    {k.nama_kategori}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Layanan</Label>
-            <Select
-              value={selection.layananId}
-              onValueChange={(value) =>
-                handleSelectionChange("layananId", value)
-              }
-              disabled={!selection.kategoriId}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="-- Pilih Layanan --" />
-              </SelectTrigger>
-              <SelectContent>
-                {layananList?.map((l) => (
-                  <SelectItem key={l.id} value={String(l.id)}>
-                    {l.nama_layanan}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        {/* Dropdown Kategori */}
+        <div>
+          <Label>Kategori</Label>
+          <Select onValueChange={handleKategoriSelect} value={selectedKategori}>
+            <SelectTrigger>
+              <SelectValue placeholder="-- Pilih Kategori --" />
+            </SelectTrigger>
+            <SelectContent>
+              {kategoriOptions?.map((kategori) => (
+                <SelectItem key={kategori.id} value={String(kategori.id)}>
+                  {kategori.nama_kategori}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
+
+        {/* Dropdown Layanan */}
+        <div>
+          <Label>Layanan</Label>
+          <Select
+            onValueChange={handleLayananSelect}
+            value={selectedLayanan}
+            disabled={!selectedKategori || layananOptions.length === 0} // Nonaktif jika kategori belum dipilih
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="-- Pilih Layanan --" />
+            </SelectTrigger>
+            <SelectContent>
+              {layananOptions?.map((layanan) => (
+                <SelectItem key={layanan.id} value={String(layanan.id)}>
+                  {layanan.nama_layanan}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {/* Dropdown Paket & Input Jumlah */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="col-span-2">
             <Label>Paket</Label>
             <Select
-              value={selection.paketId}
-              onValueChange={(value) => handleSelectionChange("paketId", value)}
-              disabled={!selection.layananId}
+              onValueChange={setSelectedPaket}
+              value={selectedPaket}
+              disabled={!selectedLayanan || paketOptions.length === 0}
             >
               <SelectTrigger>
                 <SelectValue placeholder="-- Pilih Paket --" />
               </SelectTrigger>
               <SelectContent>
-                {paketList?.map((p) => (
-                  <SelectItem key={p.id} value={String(p.id)}>
-                    {p.nama_paket}
+                {paketOptions?.map((paket) => (
+                  <SelectItem key={paket.id} value={String(paket.id)}>
+                    {paket.nama_paket} - Rp {paket.harga.toLocaleString()}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -165,20 +129,21 @@ function ServiceSelector({ onAddToCart }) {
             <Label>Jumlah</Label>
             <Input
               type="number"
-              value={selection.jumlah}
-              onChange={(e) => handleSelectionChange("jumlah", e.target.value)}
-              min="0"
-              placeholder="0"
-              disabled={!selection.paketId}
+              value={jumlah}
+              onChange={(e) =>
+                setJumlah(Math.max(1, parseInt(e.target.value) || 1))
+              }
+              disabled={!selectedPaket}
             />
           </div>
         </div>
+
         <Button
-          onClick={handleAdd}
+          onClick={handleAddToCartClick}
+          disabled={!selectedPaket || !jumlah}
           className="w-full"
-          disabled={!selection.paketId || selection.jumlah <= 0}
         >
-          + Tambah ke Keranjang
+          Tambah ke Keranjang
         </Button>
       </CardContent>
     </Card>
