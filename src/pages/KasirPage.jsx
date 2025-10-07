@@ -444,7 +444,7 @@ function KasirPage() {
               {/* Kirim penanda (ref) ke tombol Print */}
               <PrintStrukButton
                 componentRef={strukRef}
-                disabled={!detailTransaksiSukses || !strukRef.current}
+                disabled={!detailTransaksiSukses}
               />
               <Button
                 onClick={handleKirimWA}

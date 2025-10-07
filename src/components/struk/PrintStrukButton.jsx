@@ -18,7 +18,7 @@ function PrintStrukButton({ componentRef }) {
       onClick={handlePrint}
       variant="outline"
       className="w-full"
-      disabled={!componentRef?.current}
+      disabled={!componentRef} // atau bisa dihapus aja
     >
       <Printer className="mr-2 h-4 w-4" />
       Cetak Struk
