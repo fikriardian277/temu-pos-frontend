@@ -20,7 +20,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
-} from "@/components/ui/card.jsx";
+} from "@/components/ui/Card.jsx";
 import {
   Dialog,
   DialogContent,

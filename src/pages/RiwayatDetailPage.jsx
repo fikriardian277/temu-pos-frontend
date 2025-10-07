@@ -14,7 +14,7 @@ import {
   CardTitle,
   CardContent,
   CardDescription,
-} from "@/components/ui/card.jsx";
+} from "@/components/ui/Card.jsx";
 import { Button } from "@/components/ui/Button.jsx";
 import { Loader2, Printer, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/badge.jsx";
