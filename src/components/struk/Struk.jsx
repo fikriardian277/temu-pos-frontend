@@ -3,7 +3,10 @@ import React from "react";
 const Struk = React.forwardRef(({ transaksi }, ref) => {
   if (!transaksi) return null;
 
+  // Helper yang aman untuk format Rupiah
   const formatRupiah = (value) => Number(value ?? 0).toLocaleString("id-ID");
+
+  const isPoinSystemActive = transaksi.Usaha?.skema_poin_aktif !== "nonaktif";
 
   return (
     <div
@@ -27,7 +30,7 @@ const Struk = React.forwardRef(({ transaksi }, ref) => {
         }
       `}</style>
 
-      {/* Header */}
+      {/* Header Usaha */}
       <div className="text-center mb-1">
         <h1 className="font-bold text-[12px] uppercase">
           {transaksi.Usaha?.nama_usaha || "Nama Usaha"}
@@ -42,7 +45,7 @@ const Struk = React.forwardRef(({ transaksi }, ref) => {
 
       <hr className="border-dashed border-t border-black my-1" />
 
-      {/* Info transaksi */}
+      {/* Info Transaksi */}
       <div className="space-y-[2px]">
         <div className="flex justify-between">
           <span>Invoice:</span>
@@ -51,9 +54,12 @@ const Struk = React.forwardRef(({ transaksi }, ref) => {
         <div className="flex justify-between">
           <span>Tanggal:</span>
           <span>
-            {new Date(transaksi.createdAt).toLocaleDateString("id-ID", {
+            {new Date(transaksi.createdAt).toLocaleString("id-ID", {
               hour: "2-digit",
               minute: "2-digit",
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
             })}
           </span>
         </div>
@@ -61,21 +67,20 @@ const Struk = React.forwardRef(({ transaksi }, ref) => {
           <span>Kasir:</span>
           <span>{transaksi.Pengguna?.nama_lengkap || "-"}</span>
         </div>
-        <hr className="border-dashed border-t border-black my-1" />
-
-        {/* Nama Pelanggan - Tampil Besar di Tengah */}
-        <div className="text-center my-1">
-          <span className="font-bold text-[13px] uppercase">
-            {transaksi.Pelanggan?.nama || "-"}
-          </span>
-        </div>
-
-        <hr className="border-dashed border-t border-black my-1" />
       </div>
 
       <hr className="border-dashed border-t border-black my-1" />
 
-      {/* Detail item */}
+      {/* Nama Pelanggan */}
+      <div className="text-center my-1">
+        <span className="font-bold text-[13px] uppercase">
+          {transaksi.Pelanggan?.nama || "-"}
+        </span>
+      </div>
+
+      <hr className="border-dashed border-t border-black my-1" />
+
+      {/* Rincian Item */}
       {transaksi.Pakets?.map((paket) => (
         <div key={paket.id} className="mb-[3px]">
           <p className="font-semibold">{paket.nama_paket}</p>
@@ -91,7 +96,7 @@ const Struk = React.forwardRef(({ transaksi }, ref) => {
 
       <hr className="border-dashed border-t border-black my-1" />
 
-      {/* Subtotal dan total */}
+      {/* Kalkulasi Total */}
       <div className="space-y-[2px]">
         <div className="flex justify-between">
           <span>Subtotal</span>
@@ -99,13 +104,13 @@ const Struk = React.forwardRef(({ transaksi }, ref) => {
         </div>
         {transaksi.diskon > 0 && (
           <div className="flex justify-between">
-            <span>Diskon</span>
+            <span>Diskon Poin</span>
             <span>-Rp{formatRupiah(transaksi.diskon)}</span>
           </div>
         )}
         {transaksi.biaya_layanan > 0 && (
           <div className="flex justify-between">
-            <span>Layanan</span>
+            <span>Biaya Layanan</span>
             <span>Rp{formatRupiah(transaksi.biaya_layanan)}</span>
           </div>
         )}
@@ -113,15 +118,56 @@ const Struk = React.forwardRef(({ transaksi }, ref) => {
 
       <hr className="border-dashed border-t border-black my-1" />
 
-      {/* Grand total */}
+      {/* Grand Total */}
       <div className="flex justify-between font-bold text-[11px]">
         <span>GRAND TOTAL</span>
         <span>Rp{formatRupiah(transaksi.grand_total)}</span>
       </div>
 
-      <p className="text-center mt-2 text-[9px] italic">
-        {transaksi.Usaha?.struk_footer_text || "Terima Kasih!"}
-      </p>
+      <hr className="border-dashed border-t border-black my-1" />
+
+      {/* Info Poin */}
+      {isPoinSystemActive && (
+        <div className="mt-1">
+          <p className="text-center font-semibold mb-1">-- Info Poin --</p>
+          <div className="flex justify-between">
+            <span>Poin Ditukar:</span>
+            <span>- {formatRupiah(transaksi.poin_digunakan)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Poin Didapat:</span>
+            <span>+ {formatRupiah(transaksi.poin_didapat)}</span>
+          </div>
+          <hr className="border-dotted border-t border-black my-1" />
+          <div className="flex justify-between font-bold">
+            <span>Total Poin Anda:</span>
+            <span>{formatRupiah(transaksi.Pelanggan?.poin)}</span>
+          </div>
+          <hr className="border-dashed border-t border-black my-1" />
+        </div>
+      )}
+
+      {/* Catatan */}
+      {transaksi.catatan && (
+        <div className="mt-1">
+          <p className="font-semibold">Catatan:</p>
+          <p>{transaksi.catatan}</p>
+          <hr className="border-dashed border-t border-black my-1" />
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="text-center mt-1">
+        <p>
+          Status: {transaksi.status_pembayaran}{" "}
+          {transaksi.metode_pembayaran
+            ? `(${transaksi.metode_pembayaran})`
+            : ""}
+        </p>
+        <p className="mt-2 text-[9px] italic">
+          {transaksi.Usaha?.struk_footer_text || "Terima Kasih!"}
+        </p>
+      </div>
     </div>
   );
 });
