@@ -6,6 +6,12 @@ const Struk = React.forwardRef(({ transaksi }, ref) => {
   // Helper yang aman untuk format Rupiah
   const formatRupiah = (value) => Number(value ?? 0).toLocaleString("id-ID");
 
+  // [FIX 3] Hitung ulang subtotal dari item paket saja untuk memastikan nilainya benar.
+  const subtotalPaket = transaksi.Pakets?.reduce(
+    (total, paket) => total + paket.DetailTransaksi.subtotal,
+    0
+  );
+
   const isPoinSystemActive = transaksi.Usaha?.skema_poin_aktif !== "nonaktif";
 
   return (
@@ -94,24 +100,40 @@ const Struk = React.forwardRef(({ transaksi }, ref) => {
         </div>
       ))}
 
+      {/* [FIX 1] Tampilkan biaya member jika ada */}
+      {transaksi.upgrade_member && (
+        <div className="mb-[3px]">
+          <p className="font-semibold">Biaya Upgrade Membership</p>
+          <div className="flex justify-between">
+            <span>
+              1 pcs × Rp{formatRupiah(transaksi.biaya_membership_upgrade)}
+            </span>
+            <span>Rp{formatRupiah(transaksi.biaya_membership_upgrade)}</span>
+          </div>
+        </div>
+      )}
+
       <hr className="border-dashed border-t border-black my-1" />
 
       {/* Kalkulasi Total */}
       <div className="space-y-[2px]">
         <div className="flex justify-between">
           <span>Subtotal</span>
-          <span>Rp{formatRupiah(transaksi.subtotal)}</span>
+          <span>Rp{formatRupiah(subtotalPaket)}</span>
         </div>
-        {transaksi.diskon > 0 && (
-          <div className="flex justify-between">
-            <span>Diskon Poin</span>
-            <span>-Rp{formatRupiah(transaksi.diskon)}</span>
-          </div>
-        )}
+
+        {/* [FIX 2] Tampilkan biaya layanan antar jemput di sini */}
         {transaksi.biaya_layanan > 0 && (
           <div className="flex justify-between">
             <span>Biaya Layanan</span>
             <span>Rp{formatRupiah(transaksi.biaya_layanan)}</span>
+          </div>
+        )}
+
+        {transaksi.diskon > 0 && (
+          <div className="flex justify-between">
+            <span>Diskon Poin</span>
+            <span>-Rp{formatRupiah(transaksi.diskon)}</span>
           </div>
         )}
       </div>
