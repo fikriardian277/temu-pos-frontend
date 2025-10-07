@@ -2,6 +2,7 @@ import React from "react";
 import { useAuth } from "@/context/AuthContext";
 
 const Struk = React.forwardRef(({ transaksi }, ref) => {
+  console.log("DATA UNTUK STRUK:", transaksi);
   const { authState } = useAuth();
   const { pengaturan } = authState;
 
