@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/Select.jsx";
 import { Button } from "@/components/ui/Button.jsx";
 
-// --- TERIMA PROPS BARU DI SINI ---
 function ServiceSelector({
   kategoriOptions,
   layananOptions,
@@ -29,19 +28,19 @@ function ServiceSelector({
   const [selectedKategori, setSelectedKategori] = useState("");
   const [selectedLayanan, setSelectedLayanan] = useState("");
   const [selectedPaket, setSelectedPaket] = useState("");
-  const [jumlah, setJumlah] = useState(1);
+  const [jumlah, setJumlah] = useState(0); // <-- DIUBAH DARI 1 MENJADI 0
 
   const handleKategoriSelect = (kategoriId) => {
     setSelectedKategori(kategoriId);
-    setSelectedLayanan(""); // Reset pilihan layanan
-    setSelectedPaket(""); // Reset pilihan paket
-    onKategoriChange(kategoriId); // Panggil fungsi dari parent
+    setSelectedLayanan("");
+    setSelectedPaket("");
+    onKategoriChange(kategoriId);
   };
 
   const handleLayananSelect = (layananId) => {
     setSelectedLayanan(layananId);
-    setSelectedPaket(""); // Reset pilihan paket
-    onLayananChange(layananId); // Panggil fungsi dari parent
+    setSelectedPaket("");
+    onLayananChange(layananId);
   };
 
   const handleAddToCartClick = () => {
@@ -51,9 +50,8 @@ function ServiceSelector({
     );
     if (paketToAdd) {
       onAddToCart(paketToAdd, jumlah);
-      // Reset form setelah ditambahkan
       setSelectedPaket("");
-      setJumlah(1);
+      setJumlah(0); // <-- DIUBAH DARI 1 MENJADI 0
     }
   };
 
@@ -89,7 +87,7 @@ function ServiceSelector({
           <Select
             onValueChange={handleLayananSelect}
             value={selectedLayanan}
-            disabled={!selectedKategori || layananOptions.length === 0} // Nonaktif jika kategori belum dipilih
+            disabled={!selectedKategori || layananOptions.length === 0}
           >
             <SelectTrigger>
               <SelectValue placeholder="-- Pilih Layanan --" />
@@ -131,7 +129,8 @@ function ServiceSelector({
               type="number"
               value={jumlah}
               onChange={(e) =>
-                setJumlah(Math.max(1, parseInt(e.target.value) || 1))
+                // <-- DIUBAH AGAR BISA 0
+                setJumlah(parseInt(e.target.value) || 0)
               }
               disabled={!selectedPaket}
             />
@@ -140,7 +139,7 @@ function ServiceSelector({
 
         <Button
           onClick={handleAddToCartClick}
-          disabled={!selectedPaket || !jumlah}
+          disabled={!selectedPaket || jumlah <= 0} // <-- DIUBAH AGAR MEMVALIDASI JUMLAH > 0
           className="w-full"
         >
           Tambah ke Keranjang

@@ -1,6 +1,6 @@
 // src/pages/KasirPage.jsx
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import api from "../api/axiosInstance";
 import CustomerSection from "../components/kasir/CustomerSection";
@@ -60,6 +60,7 @@ function KasirPage() {
   const [transaksiSuccess, setTransaksiSuccess] = useState(null);
   const [detailTransaksiSukses, setDetailTransaksiSukses] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const strukRef = useRef();
 
   const [allKategoriData, setAllKategoriData] = useState([]); // Untuk menyimpan data mentah dari API
   const [kategoriOptions, setKategoriOptions] = useState([]); // Untuk dropdown Kategori
@@ -430,15 +431,18 @@ function KasirPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {/* --- BAGIAN INI YANG BERUBAH --- */}
             <div className="border rounded-lg my-4 bg-muted/30 p-2">
               <div className="max-h-64 overflow-y-auto">
                 <div className="w-[220px] mx-auto">
-                  <Struk transaksi={detailTransaksiSukses} />
+                  {/* Beri penanda (ref) ke komponen Struk */}
+                  <Struk ref={strukRef} transaksi={detailTransaksiSukses} />
                 </div>
               </div>
             </div>
             <div className="mt-6 grid grid-cols-2 gap-4">
-              <PrintStrukButton transaksi={detailTransaksiSukses} />
+              {/* Kirim penanda (ref) ke tombol Print */}
+              <PrintStrukButton componentRef={strukRef} />
               <Button
                 onClick={handleKirimWA}
                 variant="outline"
@@ -447,6 +451,7 @@ function KasirPage() {
                 Kirim WhatsApp
               </Button>
             </div>
+            {/* --- AKHIR DARI BAGIAN YANG BERUBAH --- */}
             <Button
               onClick={resetForm}
               variant="default"
