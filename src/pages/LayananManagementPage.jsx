@@ -1,9 +1,11 @@
-// src/pages/LayananManagementPage.jsx
+// src/pages/LayananManagementPage.jsx (VERSI ANTI-BOCOR & LENGKAP)
 
-import React, { useState, useEffect } from "react";
-import api from "@/api/axiosInstance";
-import { Plus, Trash2, Edit, MoreVertical } from "lucide-react";
+import React, { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/supabaseClient";
+import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { Plus, Trash2, Edit, MoreVertical, Loader2 } from "lucide-react";
+import { usePageVisibility } from "@/lib/usePageVisibility.js";
 
 // Impor semua komponen dari shadcn/ui
 import { Button } from "@/components/ui/Button.jsx";
@@ -85,39 +87,57 @@ const ActionMenu = ({ onEdit, onDelete }) => (
 );
 
 function LayananManagementPage() {
-  const [kategoriData, setKategoriData] = useState([]);
+  const { authState } = useAuth();
+  const [categories, setCategories] = useState([]); // <-- Ganti nama state biar jelas
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [modalState, setModalState] = useState({
     type: null,
     data: null,
     isOpen: false,
   });
   const [formData, setFormData] = useState({});
-  const [formError, setFormError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
+    if (!authState.business_id) return;
+
     try {
-      if (!loading) setLoading(true);
-      const response = await api.get("/layanan");
-      setKategoriData(response.data);
+      setLoading(true);
+      // PERUBAHAN #1: Filter query berdasarkan business_id
+      const { data, error } = await supabase
+        .from("categories")
+        .select(`*, services (*, packages (*))`)
+        .eq("business_id", authState.business_id)
+        .order("created_at", { ascending: true })
+        .order("created_at", { foreignTable: "services", ascending: true })
+        .order("created_at", {
+          foreignTable: "services.packages",
+          ascending: true,
+        });
+
+      if (error) throw error;
+
+      // PERUBAHAN #2: Hapus "penerjemah". Langsung gunakan data apa adanya.
+      setCategories(data);
     } catch (err) {
-      setError("Gagal mengambil data layanan.");
+      toast.error("Gagal mengambil data layanan.");
+      console.error(err);
     } finally {
       setLoading(false);
     }
-  };
+  }, [authState.business_id]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
+
+  // Pasang sensor anti-macet
+  usePageVisibility(fetchData);
 
   const handleOpenModal = (type, data = {}) => {
     setModalState({ type, data, isOpen: true });
     setFormData(data);
-    setFormError("");
   };
-
   const handleCloseModal = () =>
     setModalState({ type: null, data: null, isOpen: false });
   const handleFormChange = (e) =>
@@ -125,45 +145,108 @@ function LayananManagementPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setFormError("");
-    const { type, data } = modalState;
+    const { type, data: modalData } = modalState;
+    setIsSubmitting(true);
+
     try {
-      if (type === "new_kategori")
-        await api.post("/kategori", { nama_kategori: formData.nama_kategori });
-      else if (type === "edit_kategori")
-        await api.put(`/kategori/${data.id}`, {
-          nama_kategori: formData.nama_kategori,
-        });
-      else if (type === "new_layanan")
-        await api.post("/layanan", { ...formData, id_kategori: data.id });
-      else if (type === "edit_layanan")
-        await api.put(`/layanan/${data.id}`, formData);
-      else if (type === "new_paket")
-        await api.post("/paket", { ...formData, id_layanan: data.id });
-      else if (type === "edit_paket")
-        await api.put(`/paket/${data.id}`, formData);
+      let error;
+      const business_id = authState.business_id; // Ambil business_id
+
+      // PERUBAHAN #3: Selalu sertakan business_id saat INSERT
+      if (type === "new_kategori") {
+        ({ error } = await supabase
+          .from("categories")
+          .insert({ name: formData.name, business_id }));
+      } else if (type === "edit_kategori") {
+        ({ error } = await supabase
+          .from("categories")
+          .update({ name: formData.name })
+          .eq("id", modalData.id)
+          .eq("business_id", business_id));
+      } else if (type === "new_layanan") {
+        ({ error } = await supabase.from("services").insert({
+          name: formData.name,
+          category_id: modalData.id,
+          business_id,
+        }));
+      } else if (type === "edit_layanan") {
+        ({ error } = await supabase
+          .from("services")
+          .update({ name: formData.name })
+          .eq("id", modalData.id)
+          .eq("business_id", business_id));
+      } else if (type === "new_paket") {
+        ({ error } = await supabase.from("packages").insert({
+          name: formData.name,
+          price: formData.price,
+          unit: formData.unit,
+          time_estimation: formData.time_estimation,
+          min_order: formData.min_order,
+          service_id: modalData.id,
+          business_id,
+          estimation_in_hours: formData.estimation_in_hours,
+        }));
+      } else if (type === "edit_paket") {
+        ({ error } = await supabase
+          .from("packages")
+          .update({
+            name: formData.name,
+            price: formData.price,
+            unit: formData.unit,
+            time_estimation: formData.time_estimation,
+            min_order: formData.min_order,
+            estimation_in_hours: formData.estimation_in_hours,
+          })
+          .eq("id", modalData.id)
+          .eq("business_id", business_id));
+      }
+
+      if (error) throw error;
       toast.success("Data berhasil disimpan!");
       handleCloseModal();
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.message || `Gagal memproses data.`);
+      toast.error(`Gagal memproses data: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleDelete = async (type, id) => {
     try {
-      if (type === "kategori") await api.delete(`/kategori/${id}`);
-      else if (type === "layanan") await api.delete(`/layanan/${id}`);
-      else if (type === "paket") await api.delete(`/paket/${id}`);
+      let error;
+      const business_id = authState.business_id; // Ambil business_id
+
+      // PERUBAHAN #4: Selalu filter dengan business_id saat DELETE
+      if (type === "kategori") {
+        ({ error } = await supabase
+          .from("categories")
+          .delete()
+          .eq("id", id)
+          .eq("business_id", business_id));
+      } else if (type === "layanan") {
+        ({ error } = await supabase
+          .from("services")
+          .delete()
+          .eq("id", id)
+          .eq("business_id", business_id));
+      } else if (type === "paket") {
+        ({ error } = await supabase
+          .from("packages")
+          .delete()
+          .eq("id", id)
+          .eq("business_id", business_id));
+      }
+
+      if (error) throw error;
       toast.success(`Data ${type} berhasil dihapus.`);
       fetchData();
     } catch (err) {
-      toast.error(err.response?.data?.message || `Gagal menghapus ${type}.`);
+      toast.error(`Gagal menghapus ${type}: ${err.message}`);
     }
   };
 
   if (loading) return <p className="text-center">Memuat data...</p>;
-  if (error) return <p className="text-center text-red-500">{error}</p>;
 
   return (
     <div>
@@ -175,11 +258,11 @@ function LayananManagementPage() {
       </div>
 
       <div className="space-y-6">
-        {kategoriData?.map((kategori) => (
+        {categories?.map((kategori) => (
           <Card key={kategori.id}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-2xl text-primary">
-                {kategori.nama_kategori}
+                {kategori.name} {/* BENERIN: Menggunakan nama kolom asli */}
               </CardTitle>
               <div className="flex items-center">
                 <ActionMenu
@@ -196,53 +279,67 @@ function LayananManagementPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4 pt-4">
-              {kategori.layanans?.map((layanan) => (
-                <div
-                  key={layanan.id}
-                  className="bg-background p-4 rounded-md border"
-                >
-                  <div className="flex justify-between items-center">
-                    <h3 className="text-xl font-semibold">
-                      {layanan.nama_layanan}
-                    </h3>
-                    <div className="flex items-center">
-                      <ActionMenu
-                        onEdit={() => handleOpenModal("edit_layanan", layanan)}
-                        onDelete={() => handleDelete("layanan", layanan.id)}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleOpenModal("new_paket", layanan)}
-                      >
-                        <Plus className="h-4 w-4 mr-1" /> Paket
-                      </Button>
+              {kategori.services?.map(
+                (
+                  layanan // BENERIN: Menggunakan nama relasi asli
+                ) => (
+                  <div
+                    key={layanan.id}
+                    className="bg-background p-4 rounded-md border"
+                  >
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-xl font-semibold">
+                        {layanan.name}{" "}
+                        {/* BENERIN: Menggunakan nama kolom asli */}
+                      </h3>
+                      <div className="flex items-center">
+                        <ActionMenu
+                          onEdit={() =>
+                            handleOpenModal("edit_layanan", layanan)
+                          }
+                          onDelete={() => handleDelete("layanan", layanan.id)}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenModal("new_paket", layanan)}
+                        >
+                          <Plus className="h-4 w-4 mr-1" /> Paket
+                        </Button>
+                      </div>
+                    </div>
+                    <div className="pl-4 mt-3 space-y-3 border-l-2 border-border">
+                      {layanan.packages?.map(
+                        (
+                          paket // BENERIN: Menggunakan nama relasi asli
+                        ) => (
+                          <div
+                            key={paket.id}
+                            className="flex justify-between items-center pl-2"
+                          >
+                            <div>
+                              <p>
+                                {paket.name} ({paket.time_estimation}){" "}
+                                {/* BENERIN */}
+                              </p>
+                              <p className="text-sm text-muted-foreground">
+                                Rp {paket.price.toLocaleString("id-ID")} /{" "}
+                                {paket.unit} {/* BENERIN */}
+                              </p>
+                            </div>
+                            <ActionMenu
+                              onEdit={() =>
+                                handleOpenModal("edit_paket", paket)
+                              }
+                              onDelete={() => handleDelete("paket", paket.id)}
+                            />
+                          </div>
+                        )
+                      )}
                     </div>
                   </div>
-                  <div className="pl-4 mt-3 space-y-3 border-l-2 border-border">
-                    {layanan.pakets?.map((paket) => (
-                      <div
-                        key={paket.id}
-                        className="flex justify-between items-center pl-2"
-                      >
-                        <div>
-                          <p>
-                            {paket.nama_paket} ({paket.estimasi_waktu})
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            Rp {paket.harga.toLocaleString("id-ID")} /{" "}
-                            {paket.satuan}
-                          </p>
-                        </div>
-                        <ActionMenu
-                          onEdit={() => handleOpenModal("edit_paket", paket)}
-                          onDelete={() => handleDelete("paket", paket.id)}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
+                )
+              )}
             </CardContent>
           </Card>
         ))}
@@ -258,19 +355,14 @@ function LayananManagementPage() {
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 py-4">
-            {formError && (
-              <p className="text-destructive text-sm text-center">
-                {formError}
-              </p>
-            )}
             {(modalState.type === "new_kategori" ||
               modalState.type === "edit_kategori") && (
               <div>
-                <Label htmlFor="nama_kategori">Nama Kategori</Label>
+                <Label htmlFor="name">Nama Kategori</Label>
                 <Input
-                  id="nama_kategori"
-                  name="nama_kategori"
-                  value={formData.nama_kategori || ""}
+                  id="name"
+                  name="name" // BENERIN
+                  value={formData.name || ""} // BENERIN
                   onChange={handleFormChange}
                   required
                   autoFocus
@@ -279,72 +371,91 @@ function LayananManagementPage() {
             )}
             {(modalState.type === "new_layanan" ||
               modalState.type === "edit_layanan") && (
-              <>
-                <Label htmlFor="nama_layanan">Nama Layanan</Label>
+              <div>
+                <Label htmlFor="name">Nama Layanan</Label>
                 <Input
-                  id="nama_layanan"
-                  name="nama_layanan"
-                  value={formData.nama_layanan || ""}
+                  id="name"
+                  name="name" // BENERIN
+                  value={formData.name || ""} // BENERIN
                   onChange={handleFormChange}
                   required
                   autoFocus
                 />
-              </>
+              </div>
             )}
             {(modalState.type === "new_paket" ||
               modalState.type === "edit_paket") && (
               <>
                 <div>
-                  <Label htmlFor="nama_paket">Nama Paket</Label>
+                  <Label htmlFor="name">Nama Paket</Label>
                   <Input
-                    id="nama_paket"
-                    name="nama_paket"
-                    value={formData.nama_paket || ""}
+                    id="name"
+                    name="name" // BENERIN
+                    value={formData.name || ""} // BENERIN
                     onChange={handleFormChange}
                     required
                     autoFocus
                   />
                 </div>
                 <div>
-                  <Label htmlFor="harga">Harga</Label>
+                  <Label htmlFor="price">Harga</Label>
                   <Input
-                    id="harga"
-                    name="harga"
+                    id="price"
+                    name="price" // BENERIN
                     type="number"
-                    value={formData.harga || ""}
+                    value={formData.price || ""} // BENERIN
                     onChange={handleFormChange}
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="estimasi_waktu">Estimasi Waktu</Label>
+                  <Label htmlFor="time_estimation">Estimasi Waktu</Label>
                   <Input
-                    id="estimasi_waktu"
-                    name="estimasi_waktu"
-                    value={formData.estimasi_waktu || ""}
+                    id="time_estimation"
+                    name="time_estimation" // BENERIN
+                    value={formData.time_estimation || ""} // BENERIN
                     onChange={handleFormChange}
                     placeholder="Contoh: 2-3 Hari"
                     required
                   />
                 </div>
+
                 <div>
-                  <Label htmlFor="satuan">Satuan</Label>
+                  <Label htmlFor="estimation_in_hours">
+                    Estimasi Waktu (Total Jam)
+                  </Label>
                   <Input
-                    id="satuan"
-                    name="satuan"
-                    value={formData.satuan || ""}
+                    id="estimation_in_hours"
+                    name="estimation_in_hours"
+                    type="number"
+                    value={formData.estimation_in_hours || ""}
+                    onChange={handleFormChange}
+                    placeholder="Contoh: 24 (untuk 1 hari), 4 (untuk 4 jam)"
+                    required
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Wajib diisi angka (dalam jam) untuk perhitungan.
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="unit">Satuan</Label>
+                  <Input
+                    id="unit"
+                    name="unit" // BENERIN
+                    value={formData.unit || ""} // BENERIN
                     onChange={handleFormChange}
                     placeholder="Contoh: kg/pcs"
                     required
                   />
                 </div>
                 <div>
-                  <Label htmlFor="minimal_order">Minimal Order (Kg/Pcs)</Label>
+                  <Label htmlFor="min_order">Minimal Order (Kg/Pcs)</Label>
                   <Input
-                    id="minimal_order"
-                    name="minimal_order" // <-- [FIX] TAMBAHKAN INI
+                    id="min_order"
+                    name="min_order" // BENERIN
                     type="number"
-                    value={formData.minimal_order || ""}
+                    value={formData.min_order || ""} // BENERIN
                     onChange={handleFormChange}
                     placeholder="0"
                   />
@@ -362,7 +473,16 @@ function LayananManagementPage() {
               >
                 Batal
               </Button>
-              <Button type="submit">Simpan</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Menyimpan...
+                  </>
+                ) : (
+                  "Simpan"
+                )}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

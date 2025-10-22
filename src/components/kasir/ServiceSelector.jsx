@@ -1,13 +1,15 @@
-import React, { useState } from "react";
+// src/components/kasir/ServiceSelector.jsx (VERSI PINTAR & MANDIRI)
+
+import React, { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/Button.jsx";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
-  CardDescription,
 } from "@/components/ui/Card.jsx";
 import { Input } from "@/components/ui/Input.jsx";
-import { Label } from "@/components/ui/Label.jsx";
 import {
   Select,
   SelectContent,
@@ -15,43 +17,51 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select.jsx";
-import { Button } from "@/components/ui/Button.jsx";
 
-function ServiceSelector({
-  kategoriOptions,
-  layananOptions,
-  paketOptions,
-  onKategoriChange,
-  onLayananChange,
-  onAddToCart,
-}) {
-  const [selectedKategori, setSelectedKategori] = useState("");
-  const [selectedLayanan, setSelectedLayanan] = useState("");
-  const [selectedPaket, setSelectedPaket] = useState("");
-  const [jumlah, setJumlah] = useState(0);
+function ServiceSelector({ categories, onAddToCart }) {
+  // State internal, dikelola sendiri oleh komponen ini
+  const [selectedKategoriId, setSelectedKategoriId] = useState("");
+  const [selectedLayananId, setSelectedLayananId] = useState("");
+  const [selectedPaketId, setSelectedPaketId] = useState("");
+  const [jumlah, setJumlah] = useState("");
 
-  const handleKategoriSelect = (kategoriId) => {
-    setSelectedKategori(kategoriId);
-    setSelectedLayanan("");
-    setSelectedPaket("");
-    onKategoriChange(kategoriId);
-  };
+  // Opsi dropdown yang dihitung berdasarkan pilihan
+  const [layananOptions, setLayananOptions] = useState([]);
+  const [paketOptions, setPaketOptions] = useState([]);
 
-  const handleLayananSelect = (layananId) => {
-    setSelectedLayanan(layananId);
-    setSelectedPaket("");
-    onLayananChange(layananId);
-  };
-
-  const handleAddToCartClick = () => {
-    if (!selectedPaket || !jumlah) return;
-    const paketToAdd = paketOptions.find(
-      (p) => p.id === parseInt(selectedPaket)
+  // Fungsi internal untuk handle perubahan
+  const handleKategoriChange = (kategoriId) => {
+    setSelectedKategoriId(kategoriId);
+    setSelectedLayananId(""); // Reset pilihan layanan
+    setSelectedPaketId(""); // Reset pilihan paket
+    const selectedKategori = categories.find(
+      (k) => k.id === parseInt(kategoriId)
     );
-    if (paketToAdd) {
-      onAddToCart(paketToAdd, jumlah);
-      setSelectedPaket("");
-      setJumlah(0);
+    setLayananOptions(selectedKategori?.services || []);
+    setPaketOptions([]);
+  };
+
+  const handleLayananChange = (layananId) => {
+    setSelectedLayananId(layananId);
+    setSelectedPaketId(""); // Reset pilihan paket
+    const selectedLayanan = layananOptions.find(
+      (l) => l.id === parseInt(layananId)
+    );
+    setPaketOptions(selectedLayanan?.packages || []);
+  };
+
+  const handleAddToCart = () => {
+    if (!selectedPaketId || !jumlah) {
+      return toast.error("Pilih paket dan masukkan jumlah.");
+    }
+    const selectedPaket = paketOptions.find(
+      (p) => p.id === parseInt(selectedPaketId)
+    );
+    if (selectedPaket) {
+      onAddToCart(selectedPaket, parseFloat(jumlah));
+      // Reset form setelah berhasil
+      setSelectedPaketId("");
+      setJumlah("");
     }
   };
 
@@ -59,90 +69,67 @@ function ServiceSelector({
     <Card>
       <CardHeader>
         <CardTitle>Pilih Layanan & Paket</CardTitle>
-        <CardDescription>
-          Pilih kategori, layanan, dan paket yang akan ditambahkan ke keranjang.
-        </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Dropdown Kategori */}
-        <div>
-          <Label>Kategori</Label>
-          <Select onValueChange={handleKategoriSelect} value={selectedKategori}>
+        <div className="grid grid-cols-2 gap-4">
+          <Select
+            onValueChange={handleKategoriChange}
+            value={selectedKategoriId}
+          >
             <SelectTrigger>
               <SelectValue placeholder="-- Pilih Kategori --" />
             </SelectTrigger>
             <SelectContent>
-              {kategoriOptions?.map((kategori) => (
-                <SelectItem key={kategori.id} value={String(kategori.id)}>
-                  {kategori.nama_kategori}
+              {categories.map((k) => (
+                <SelectItem key={k.id} value={String(k.id)}>
+                  {k.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        </div>
-
-        {/* Dropdown Layanan */}
-        <div>
-          <Label>Layanan</Label>
           <Select
-            onValueChange={handleLayananSelect}
-            value={selectedLayanan}
-            disabled={!selectedKategori || layananOptions.length === 0}
+            onValueChange={handleLayananChange}
+            value={selectedLayananId}
+            disabled={!layananOptions.length}
           >
             <SelectTrigger>
               <SelectValue placeholder="-- Pilih Layanan --" />
             </SelectTrigger>
             <SelectContent>
-              {layananOptions?.map((layanan) => (
-                <SelectItem key={layanan.id} value={String(layanan.id)}>
-                  {layanan.nama_layanan}
+              {layananOptions.map((l) => (
+                <SelectItem key={l.id} value={String(l.id)}>
+                  {l.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-
-        {/* Dropdown Paket & Input Jumlah */}
-        <div className="grid grid-cols-3 gap-4">
-          <div className="col-span-2">
-            <Label>Paket</Label>
-            <Select
-              onValueChange={setSelectedPaket}
-              value={selectedPaket}
-              disabled={!selectedLayanan || paketOptions.length === 0}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="-- Pilih Paket --" />
-              </SelectTrigger>
-              <SelectContent>
-                {paketOptions?.map((paket) => (
-                  <SelectItem key={paket.id} value={String(paket.id)}>
-                    {paket.nama_paket} - Rp {paket.harga.toLocaleString()}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label>Jumlah</Label>
-            <Input
-              type="number"
-              value={jumlah}
-              // [FIX] Gunakan parseFloat untuk mendukung desimal
-              onChange={(e) => setJumlah(parseFloat(e.target.value) || 0)}
-              onFocus={(e) => e.target.select()}
-              // [FIX] Tambahkan 'step' untuk mengizinkan input desimal di browser
-              step="0.1"
-              disabled={!selectedPaket}
-            />
-          </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Select
+            onValueChange={setSelectedPaketId}
+            value={selectedPaketId}
+            disabled={!paketOptions.length}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="-- Pilih Paket --" />
+            </SelectTrigger>
+            <SelectContent>
+              {paketOptions.map((p) => (
+                <SelectItem key={p.id} value={String(p.id)}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            type="number"
+            placeholder="Jumlah"
+            value={jumlah}
+            onChange={(e) => setJumlah(e.target.value)}
+            min=""
+          />
         </div>
-
-        <Button
-          onClick={handleAddToCartClick}
-          disabled={!selectedPaket || jumlah <= 0}
-          className="w-full"
-        >
+        <Button onClick={handleAddToCart} className="w-full">
           Tambah ke Keranjang
         </Button>
       </CardContent>

@@ -1,124 +1,137 @@
-// src/context/AuthContext.jsx
+// src/context/AuthContext.jsx (VERSI FINAL & STABIL)
 
 import React, {
   createContext,
   useState,
   useContext,
-  useCallback,
   useEffect,
+  useCallback,
 } from "react";
-import { jwtDecode } from "jwt-decode";
-import api from "@/api/axiosInstance";
+import { supabase } from "@/supabaseClient";
 
-const AuthContext = createContext(undefined);
+const AuthContext = createContext();
 
-export function AuthProvider({ children }) {
-  const [authState, setAuthState] = useState({
-    token: null,
-    user: null,
-    pengaturan: null, // <-- State untuk pengaturan
-    isReady: false,
-  });
+// ==========================================================
+// INI FUNGSI UTAMA "JANTUNG" APLIKASIMU
+// ==========================================================
+export function AuthProvider({ children, initialSession }) {
+  // 1. State diinisialisasi dengan data awal dari main.jsx
+  const [session, setSession] = useState(initialSession || null);
+  const [profile, setProfile] = useState(null);
+  const [settings, setSettings] = useState(null);
+  const [loading, setLoading] = useState(true); // Mulai dengan loading
 
-  // Efek ini hanya jalan sekali saat aplikasi pertama dimuat
-  useEffect(() => {
-    const initializeAuth = async () => {
-      const token = localStorage.getItem("accessToken");
-      if (token) {
-        try {
-          const user = jwtDecode(token);
-          if (user.exp * 1000 > Date.now()) {
-            // Jika token valid, pasang di header API dan ambil pengaturan
-            api.defaults.headers.common["Authorization"] = `Bearer ${token}`;
-            const pengaturanResponse = await api.get("/pengaturan");
-            setAuthState({
-              token,
-              user,
-              pengaturan: pengaturanResponse.data,
-              isReady: true,
-            });
-          } else {
-            // Token kadaluarsa
-            localStorage.removeItem("accessToken");
-            setAuthState({
-              token: null,
-              user: null,
-              pengaturan: null,
-              isReady: true,
-            });
-          }
-        } catch (error) {
-          console.error("Inisialisasi auth gagal:", error);
-          localStorage.removeItem("accessToken");
-          setAuthState({
-            token: null,
-            user: null,
-            pengaturan: null,
-            isReady: true,
-          });
-        }
-      } else {
-        // Tidak ada token
-        setAuthState({
-          token: null,
-          user: null,
-          pengaturan: null,
-          isReady: true,
-        });
+  // Fungsi untuk mengambil data user, dibungkus useCallback agar stabil
+  const fetchUserData = useCallback(async (currentSession) => {
+    try {
+      if (!currentSession) {
+        setProfile(null);
+        setSettings(null);
+        return;
       }
+
+      // 1. Ambil profil dulu
+      const { data: profileData, error: profileError } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", currentSession.user.id)
+        .single();
+
+      if (profileError) throw profileError;
+
+      // 2. JIKA PROFIL ADA, PAKAI 'profileData' UNTUK CARI PENGATURAN
+      let settingsData = null;
+      if (profileData && profileData.business_id) {
+        const { data, error: settingsError } = await supabase
+          .from("settings")
+          .select("*")
+          .eq("business_id", profileData.business_id) // <-- BENERIN: Pake 'profileData.business_id'
+          .maybeSingle();
+
+        if (settingsError) throw settingsError;
+        settingsData = data;
+      }
+
+      // 3. Baru set state-nya
+      setProfile(profileData);
+      setSettings(settingsData);
+    } catch (error) {
+      console.error(
+        "Gagal mengambil data profil/settings, logout paksa:",
+        error
+      );
+      await supabase.auth.signOut();
+      setProfile(null);
+      setSettings(null);
+    }
+  }, []);
+
+  const refetchAuthData = useCallback(async () => {
+    console.log("REFETCH: Mengambil data auth terbaru...");
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+    if (session) {
+      await fetchUserData(session);
+    }
+  }, [fetchUserData]);
+
+  // useEffect ini sekarang punya dua tugas:
+  // 1. Mengambil data awal saat komponen pertama kali mount.
+  // 2. Mendengarkan perubahan login/logout di masa depan.
+  useEffect(() => {
+    // Tugas 1: Ambil data awal berdasarkan initialSession
+    async function getInitialData() {
+      if (initialSession) {
+        await fetchUserData(initialSession);
+      }
+      // Setelah data awal selesai di-load, baru kita matikan loading
+      setLoading(false);
+    }
+    getInitialData();
+
+    // Tugas 2: Siapkan listener untuk login/logout berikutnya
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      // Listener ini akan menangani saat user klik login atau logout
+      setSession(newSession);
+    });
+
+    return () => {
+      subscription.unsubscribe();
     };
-    initializeAuth();
-  }, []);
+  }, []); // <-- Array kosong berarti ini hanya jalan sekali saat komponen mount
 
-  // [FIX UTAMA] Buat fungsi login menjadi async
-  const login = useCallback(async (accessToken) => {
-    localStorage.setItem("accessToken", accessToken);
-    api.defaults.headers.common["Authorization"] = `Bearer ${accessToken}`;
-    const user = jwtDecode(accessToken);
-    try {
-      // Tunggu sampai data pengaturan selesai diambil
-      const pengaturanResponse = await api.get("/pengaturan");
-      // Baru setelah itu update state
-      setAuthState({
-        token: accessToken,
-        user,
-        pengaturan: pengaturanResponse.data,
-        isReady: true,
-      });
-    } catch (error) {
-      console.error("Gagal memuat pengaturan setelah login:", error);
-      // Jika gagal, tetap loginkan user tapi pengaturan null
-      setAuthState({
-        token: accessToken,
-        user,
-        pengaturan: null,
-        isReady: true,
-      });
+  // Setiap kali sesi berubah (dari listener), kita ambil ulang data profilnya
+  useEffect(() => {
+    if (session) {
+      fetchUserData(session);
     }
-  }, []);
+  }, [session, fetchUserData]);
 
-  const logout = useCallback(async () => {
-    try {
-      await api.post("/pengguna/logout");
-    } catch (error) {
-      console.error("Gagal saat mencoba logout dari server:", error);
-    } finally {
-      localStorage.removeItem("accessToken");
-      delete api.defaults.headers.common["Authorization"];
-      setAuthState({
-        token: null,
-        user: null,
-        pengaturan: null,
-        isReady: true,
-      });
-    }
-  }, []);
+  // Objek authState yang akan digunakan di seluruh aplikasi
+  const authState = {
+    user: session?.user,
+    ...profile,
+    pengaturan: settings,
+    isReady: !loading,
+  };
 
-  const value = { authState, login, logout };
+  const logout = () => supabase.auth.signOut();
+  const value = { authState, logout, refetchAuthData };
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  return (
+    <AuthContext.Provider value={value}>
+      {/* Kunci anti-blank screen: Jangan render children sampai loading awal selesai */}
+      {!loading && children}
+    </AuthContext.Provider>
+  );
 }
 
+// ==========================================================
+// INI HOOK UNTUK MEMANGGIL "JANTUNG"-NYA
+// ==========================================================
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

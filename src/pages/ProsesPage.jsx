@@ -1,12 +1,13 @@
-// src/pages/ProsesPage.jsx
+// src/pages/ProsesPage.jsx (VERSI FINAL & ANTI-BOCOR)
 
 import React, { useState, useEffect, useCallback } from "react";
-import api from "../api/axiosInstance";
+import { supabase } from "@/supabaseClient"; // <-- Pake Supabase
+import { useAuth } from "@/context/AuthContext"; // <-- Pake Auth
 import { toast } from "sonner";
+import { usePageVisibility } from "@/lib/usePageVisibility.js"; // <-- Pake Sensor
 
 // Impor komponen
 import { Button } from "@/components/ui/Button.jsx";
-
 import {
   Card,
   CardContent,
@@ -40,17 +41,25 @@ import {
   Truck,
   ArrowRight,
   ClipboardList,
-} from "lucide-react"; // Impor ikon baru
-
+  Loader2,
+} from "lucide-react";
 import EmptyState from "@/components/ui/EmptyState.jsx";
 
-// Komponen kartu transaksi (di-upgrade dengan logika baru)
-const TransaksiCard = ({ transaksi, onUpdateStatus, onSelesaikan }) => {
-  const { status_proses, status_pembayaran, tipe_layanan } = transaksi;
+// ==========================================================
+// "RESEP" TransaksiCard DIBENERIN DI SINI
+// ==========================================================
+const TransaksiCard = ({
+  transaksi,
+  onUpdateStatus,
+  onSelesaikan,
+  isUpdating,
+}) => {
+  // BENERIN: Gunakan nama kolom asli
+  const { process_status, payment_status, service_type } = transaksi;
 
   const getStatusVariant = () => {
-    if (status_pembayaran === "Lunas") return "success";
-    if (status_pembayaran === "Belum Lunas") return "warning";
+    if (payment_status === "Lunas") return "success";
+    if (payment_status === "Belum Lunas") return "warning";
     return "secondary";
   };
 
@@ -60,82 +69,106 @@ const TransaksiCard = ({ transaksi, onUpdateStatus, onSelesaikan }) => {
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="text-base">
-              {transaksi.Pelanggan?.nama || "N/A"}
+              {/* BENERIN: transaksi.customers.name */}
+              {transaksi.customers?.name || "N/A"}
             </CardTitle>
             <CardDescription className="text-xs">
-              {transaksi.kode_invoice}
+              {/* BENERIN: transaksi.invoice_code */}
+              {transaksi.invoice_code}
             </CardDescription>
           </div>
-          <Badge variant={getStatusVariant()}>{status_pembayaran}</Badge>
+          <Badge variant={getStatusVariant()}>{payment_status}</Badge>
         </div>
       </CardHeader>
       <CardContent className="p-4 text-xs text-muted-foreground space-y-1">
-        {transaksi.Pakets?.map((p) => (
-          <p key={p.id} className="truncate">
-            • {p.Layanan.nama_layanan} - {p.nama_paket}
+        {/* BENERIN: Loop lewat 'order_items' */}
+        {transaksi.order_items?.map((item) => (
+          <p key={item.id} className="truncate">
+            • {item.packages?.name || "Nama Paket Error"}
           </p>
         ))}
       </CardContent>
       <CardFooter className="p-4">
-        {/* [LOGIC] Tombol-tombol aksi sekarang lebih pintar */}
-        {status_proses === "Menunggu Penjemputan" && (
-          <Button
-            size="sm"
-            className="w-full"
-            onClick={() => onUpdateStatus(transaksi, "Diterima")}
-          >
-            <ArrowRight className="mr-2 h-4 w-4" /> Konfirmasi Diterima
-          </Button>
-        )}
-        {status_proses === "Diterima" && (
+        {/* Tambahkan 'disabled={isUpdating}' untuk mencegah klik ganda */}
+        {process_status === "Diterima" && (
           <Button
             size="sm"
             className="w-full"
             onClick={() => onUpdateStatus(transaksi, "Proses Cuci")}
+            disabled={isUpdating}
           >
-            <WashingMachine className="mr-2 h-4 w-4" /> Mulai Cuci
+            {isUpdating ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <WashingMachine className="mr-2 h-4 w-4" />
+            )}{" "}
+            Mulai Cuci
           </Button>
         )}
-        {status_proses === "Proses Cuci" && (
+        {process_status === "Proses Cuci" && (
           <Button
             size="sm"
             variant="secondary"
             className="w-full"
             onClick={() => onUpdateStatus(transaksi, "Siap Diambil")}
+            disabled={isUpdating}
           >
-            <PackageCheck className="mr-2 h-4 w-4" /> Siap Diambil
+            {isUpdating ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <PackageCheck className="mr-2 h-4 w-4" />
+            )}{" "}
+            Siap Diambil
           </Button>
         )}
-        {status_proses === "Siap Diambil" && (
+        {process_status === "Siap Diambil" && (
           <>
-            {tipe_layanan === "antar" || tipe_layanan === "antar_jemput" ? (
+            {service_type === "antar" || service_type === "antar_jemput" ? (
               <Button
                 size="sm"
                 className="w-full bg-orange-500 hover:bg-orange-600"
                 onClick={() => onUpdateStatus(transaksi, "Proses Pengantaran")}
+                disabled={isUpdating}
               >
-                <Truck className="mr-2 h-4 w-4" /> Mulai Pengantaran
+                {isUpdating ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Truck className="mr-2 h-4 w-4" />
+                )}{" "}
+                Mulai Pengantaran
               </Button>
             ) : (
               <Button
                 size="sm"
-                variant="success"
-                className="w-full"
+                variant="default" // Ganti ke default biar warnanya gak bentrok
+                className="w-full bg-green-500 text-white hover:bg-green-600"
                 onClick={() => onSelesaikan(transaksi)}
+                disabled={isUpdating}
               >
-                <Check className="mr-2 h-4 w-4" /> Selesaikan (Diambil)
+                {isUpdating ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="mr-2 h-4 w-4" />
+                )}{" "}
+                Selesaikan (Diambil)
               </Button>
             )}
           </>
         )}
-        {status_proses === "Proses Pengantaran" && (
+        {process_status === "Proses Pengantaran" && (
           <Button
             size="sm"
-            variant="success"
-            className="w-full"
+            variant="default" // Ganti ke default biar warnanya gak bentrok
+            className="w-full bg-green-500 text-white hover:bg-green-600"
             onClick={() => onSelesaikan(transaksi)}
+            disabled={isUpdating}
           >
-            <Check className="mr-2 h-4 w-4" /> Selesai Diantar
+            {isUpdating ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Check className="mr-2 h-4 w-4" />
+            )}{" "}
+            Selesai Diantar
           </Button>
         )}
       </CardFooter>
@@ -143,14 +176,14 @@ const TransaksiCard = ({ transaksi, onUpdateStatus, onSelesaikan }) => {
   );
 };
 
-// Komponen untuk satu kolom Kanban (di-styling ulang)
+// Komponen KanbanColumn
 const KanbanColumn = ({
   title,
   transactions,
   onUpdateStatus,
   onSelesaikan,
+  isUpdating, // <-- Kirim status loading
 }) => {
-  // [UPDATE] Tampilkan pesan jika kolom kosong
   return (
     <div className="flex-1 min-w-[300px]">
       <div className="p-4 text-center sticky top-16 bg-background/80 backdrop-blur-sm z-10">
@@ -162,12 +195,13 @@ const KanbanColumn = ({
       </div>
       <div className="h-[calc(100vh-12rem)] overflow-y-auto px-2 pt-2">
         {transactions.length > 0 ? (
-          transactions?.map((tx) => (
+          transactions.map((tx) => (
             <TransaksiCard
               key={tx.id}
               transaksi={tx}
               onUpdateStatus={onUpdateStatus}
               onSelesaikan={onSelesaikan}
+              isUpdating={isUpdating === tx.id} // <-- Kirim status loading per kartu
             />
           ))
         ) : (
@@ -181,56 +215,88 @@ const KanbanColumn = ({
 };
 
 function ProsesPage() {
+  const { authState } = useAuth();
   const [transaksi, setTransaksi] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [isUpdating, setIsUpdating] = useState(null); // State untuk loading per kartu
   const [searchTerm, setSearchTerm] = useState("");
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [currentTx, setCurrentTx] = useState(null);
   const [metodePembayaran, setMetodePembayaran] = useState("Cash");
-  const [mobileView, setMobileView] = useState("jemput");
+  const [mobileView, setMobileView] = useState("terima");
 
+  // ==========================================================
+  // "MESIN" fetchData DI-UPGRADE TOTAL
+  // ==========================================================
   const fetchData = useCallback(async () => {
+    // Jangan fetch jika data auth belum siap
+    if (!authState.business_id) return;
+
     try {
       setLoading(true);
-      // [UPDATE] Kirim search term ke API
-      const response = await api.get("/transaksi/aktif", {
-        params: { search: searchTerm },
+
+      // VVV INI DIA PERUBAHANNYA VVV
+      // Kita gak pake .from('orders') lagi, kita panggil "Koki" kita
+      const { data, error } = await supabase.rpc("get_active_orders", {
+        p_business_id: authState.business_id,
+        p_role: authState.role,
+        p_branch_id: authState.branch_id,
+        p_search_term: searchTerm, // Kirim kata kuncinya ke "Koki"
       });
-      setTransaksi(response.data);
+      // ^^^ AKHIR PERUBAHAN ^^^
+
+      if (error) throw error;
+
+      // Data yang balik udah 100% jadi dan siap pake
+      setTransaksi(data || []);
     } catch (err) {
-      setError("Gagal mengambil data transaksi.");
+      toast.error("Gagal mengambil data transaksi: " + err.message);
     } finally {
       setLoading(false);
     }
-  }, [searchTerm]);
+  }, [searchTerm, authState.business_id, authState.role, authState.branch_id]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchData();
-    }, 500); // Debounce
+    }, 500);
     return () => clearTimeout(timer);
   }, [fetchData]);
 
+  usePageVisibility(fetchData);
+
+  // ==========================================================
+  // "MESIN" handleUpdateStatus DI-UPGRADE TOTAL
+  // ==========================================================
   const handleUpdateStatus = async (tx, newStatus) => {
+    setIsUpdating(tx.id);
     try {
-      const { data } = await api.put(`/transaksi/${tx.id}/status`, {
-        status: newStatus,
-      });
+      const { data, error } = await supabase
+        .from("orders")
+        .update({ process_status: newStatus })
+        .eq("id", tx.id)
+        .eq("business_id", authState.business_id)
+        .select("*, customers(name), order_items(*, packages(name, unit))") // Ambil data baru
+        .single();
 
-      setTransaksi((prev) =>
-        prev?.map((t) => (t.id === tx.id ? { ...t, ...data.data } : t))
-      );
+      if (error) throw error;
 
-      // Kirim notif WA jika status berubah menjadi 'Siap Diambil'
+      setTransaksi((prev) => prev.map((t) => (t.id === tx.id ? data : t)));
+
       if (newStatus === "Siap Diambil") {
         toast.info("Mempersiapkan notifikasi WhatsApp...");
         try {
-          const response = await api.post("/transaksi/generate-wa-message", {
-            kode_invoice: tx.kode_invoice,
-            tipe_pesan: "siap_diambil",
-          });
-          const { pesan, nomor_hp } = response.data;
+          const { data: waData, error: waError } =
+            await supabase.functions.invoke("generate-wa-message", {
+              body: {
+                invoice_code: tx.invoice_code,
+                tipe_pesan: "siap_diambil",
+              },
+            });
+          if (waError) throw waError;
+          if (waData.message) throw new Error(waData.message);
+
+          const { pesan, nomor_hp } = waData;
           const nomorHPFormatted = nomor_hp.startsWith("0")
             ? "62" + nomor_hp.substring(1)
             : nomor_hp;
@@ -241,71 +307,76 @@ function ProsesPage() {
             "_blank"
           );
         } catch (waError) {
-          toast.error(
-            waError.response?.data?.message || "Gagal membuat pesan WA."
-          );
+          toast.error(waError.message || "Gagal membuat pesan WA.");
         }
       }
     } catch (error) {
-      toast.error("Gagal mengupdate status.");
+      toast.error("Gagal mengupdate status: " + error.message);
+    } finally {
+      setIsUpdating(null);
     }
   };
 
-  const handleSelesaikan = (tx) => {
-    if (tx.status_pembayaran === "Belum Lunas") {
-      setCurrentTx(tx);
-      setMetodePembayaran("Cash");
-      setIsPaymentModalOpen(true);
-    } else {
-      // Langsung selesaikan jika sudah lunas
-      finalizeOrder(tx.id);
-    }
-  };
-
+  // ==========================================================
+  // "MESIN" finalizeOrder DI-UPGRADE TOTAL
+  // ==========================================================
   const finalizeOrder = async (txId, paymentData = {}) => {
+    setIsUpdating(txId);
     try {
-      await api.put(`/transaksi/${txId}/status`, {
-        status: "Selesai",
-        ...paymentData,
-      });
+      const { error } = await supabase
+        .from("orders")
+        .update({
+          process_status: "Selesai",
+          payment_status: "Lunas",
+          ...paymentData,
+        })
+        .eq("id", txId)
+        .eq("business_id", authState.business_id);
+
+      if (error) throw error;
+
       toast.success("Order berhasil diselesaikan!");
-      // Hapus dari list setelah 500ms agar ada efek visual
       setTimeout(
         () => setTransaksi((prev) => prev.filter((t) => t.id !== txId)),
         500
       );
     } catch (error) {
-      toast.error("Gagal menyelesaikan order.");
+      toast.error("Gagal menyelesaikan order: " + error.message);
+    } finally {
+      setIsUpdating(null);
+      setIsPaymentModalOpen(false);
+      setCurrentTx(null);
+    }
+  };
+
+  const handleSelesaikan = (tx) => {
+    if (tx.payment_status === "Belum Lunas") {
+      setCurrentTx(tx);
+      setMetodePembayaran("Cash");
+      setIsPaymentModalOpen(true);
+    } else {
+      finalizeOrder(tx.id);
     }
   };
 
   const handleFinalizePayment = async () => {
     if (!currentTx || !metodePembayaran) return;
-    await finalizeOrder(currentTx.id, { metode_pembayaran: metodePembayaran });
-    setIsPaymentModalOpen(false);
-    setCurrentTx(null);
+    // VVV INI YANG BENER VVV
+    await finalizeOrder(currentTx.id, { payment_method: metodePembayaran });
   };
-
-  const menungguPenjemputan = transaksi.filter(
-    (tx) => tx.status_proses === "Menunggu Penjemputan"
-  );
-  const diterima = transaksi.filter((tx) => tx.status_proses === "Diterima");
+  // Filter data (BENERIN: pake nama kolom asli)
+  const diterima = transaksi.filter((tx) => tx.process_status === "Diterima");
   const prosesCuci = transaksi.filter(
-    (tx) => tx.status_proses === "Proses Cuci"
+    (tx) => tx.process_status === "Proses Cuci"
   );
   const siapDiambil = transaksi.filter(
-    (tx) => tx.status_proses === "Siap Diambil"
+    (tx) => tx.process_status === "Siap Diambil"
   );
   const prosesPengantaran = transaksi.filter(
-    (tx) => tx.status_proses === "Proses Pengantaran"
+    (tx) => tx.process_status === "Proses Pengantaran"
   );
 
   const statusList = [
-    {
-      title: "Menunggu Penjemputan",
-      data: menungguPenjemputan,
-      value: "jemput",
-    },
     { title: "Diterima", data: diterima, value: "terima" },
     { title: "Proses Cuci", data: prosesCuci, value: "cuci" },
     { title: "Siap Diambil", data: siapDiambil, value: "siap" },
@@ -316,7 +387,6 @@ function ProsesPage() {
     statusList.find((status) => status.value === mobileView)?.data || [];
 
   if (loading) return <p className="text-center">Memuat data order aktif...</p>;
-  if (error) return <p className="text-center text-destructive">{error}</p>;
 
   if (transaksi.length === 0) {
     return (
@@ -349,28 +419,29 @@ function ProsesPage() {
         />
       </div>
 
+      {/* Tampilan Mobile */}
       <div className="md:hidden px-4">
         <Select value={mobileView} onValueChange={setMobileView}>
           <SelectTrigger>
             <SelectValue placeholder="Pilih Status..." />
           </SelectTrigger>
           <SelectContent>
-            {statusList?.map((status) => (
+            {statusList.map((status) => (
               <SelectItem key={status.value} value={status.value}>
                 {status.title} ({status.data.length})
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
-
         <div className="mt-4 space-y-4">
           {activeMobileData.length > 0 ? (
-            activeMobileData?.map((tx) => (
+            activeMobileData.map((tx) => (
               <TransaksiCard
                 key={tx.id}
                 transaksi={tx}
                 onUpdateStatus={handleUpdateStatus}
                 onSelesaikan={handleSelesaikan}
+                isUpdating={isUpdating === tx.id}
               />
             ))
           ) : (
@@ -381,17 +452,17 @@ function ProsesPage() {
         </div>
       </div>
 
-      {/* Tampilan untuk Desktop (Kanban View) - tidak berubah */}
+      {/* Tampilan Desktop (Kanban) */}
       <div className="hidden md:flex flex-row -mx-4 flex-grow">
-        {statusList?.map((status) => (
+        {statusList.map((status) => (
           <React.Fragment key={status.value}>
             <KanbanColumn
               title={status.title}
               transactions={status.data}
               onUpdateStatus={handleUpdateStatus}
               onSelesaikan={handleSelesaikan}
+              isUpdating={isUpdating}
             />
-            {/* [FIX] Jangan tampilkan separator di kolom terakhir */}
             {status.value !== "antar" && (
               <Separator orientation="vertical" className="h-auto" />
             )}
@@ -399,20 +470,20 @@ function ProsesPage() {
         ))}
       </div>
 
+      {/* Modal Pelunasan */}
       <Dialog open={isPaymentModalOpen} onOpenChange={setIsPaymentModalOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Pelunasan Order</DialogTitle>
             <DialogDescription>
-              Order ini belum lunas. Pilih metode pembayaran untuk
-              menyelesaikan.
+              Order ini belum lunas. Pilih metode pembayaran.
             </DialogDescription>
           </DialogHeader>
           <div className="py-4 space-y-4">
             <div className="text-sm">
               <p>
                 Invoice:{" "}
-                <span className="font-mono">{currentTx?.kode_invoice}</span>
+                <span className="font-mono">{currentTx?.invoice_code}</span>
               </p>
               <p>
                 Total:{" "}
@@ -443,7 +514,11 @@ function ProsesPage() {
             >
               Batal
             </Button>
-            <Button variant="success" onClick={handleFinalizePayment}>
+            <Button
+              variant="default" // Ganti ke default
+              className="bg-green-500 text-white hover:bg-green-600" // <-- CAT HIJAU DI SINI
+              onClick={handleFinalizePayment}
+            >
               Konfirmasi & Selesaikan
             </Button>
           </DialogFooter>

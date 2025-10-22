@@ -105,10 +105,10 @@ function KasirLayout() {
                 <UserCircle size={28} />
                 <div className="text-left">
                   <p className="text-sm font-semibold">
-                    {authState.user?.username}
+                    {authState.full_name}{" "}
                   </p>
                   <p className="text-xs text-muted-foreground capitalize">
-                    {authState.user?.role}
+                    {authState.role}
                   </p>
                 </div>
               </Button>

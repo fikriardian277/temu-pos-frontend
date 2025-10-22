@@ -1,8 +1,13 @@
-import React, { useState, useEffect } from "react"; // <-- MEMPERBAIKI 'useState' & 'useEffect' is not defined
-import api from "../api/axiosInstance"; // <-- MEMPERBAIKI 'api' is not defined
-import { MoreHorizontal, PlusCircle } from "lucide-react";
+// src/pages/CabangManagementPage.jsx (VERSI FINAL & LENGKAP)
 
-// Impor komponen-komponen dari shadcn/ui (dengan .jsx untuk Vercel)
+import React, { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/supabaseClient"; // <-- GANTI INI
+import { useAuth } from "@/context/AuthContext"; // <-- Tambahkan ini untuk akses authState
+import { toast } from "sonner";
+import { MoreHorizontal, PlusCircle, Loader2 } from "lucide-react";
+import { usePageVisibility } from "@/lib/usePageVisibility.js";
+
+// Impor komponen-komponen UI (tidak ada yang berubah)
 import { Button } from "@/components/ui/Button.jsx";
 import {
   Card,
@@ -48,34 +53,47 @@ import {
 } from "@/components/ui/Dialog.jsx";
 
 function CabangManagementPage() {
+  const { authState } = useAuth();
   const [cabangs, setCabangs] = useState([]);
   const [formData, setFormData] = useState({
-    nama_cabang: "",
-    alamat: "",
-    nomor_telepon: "",
+    name: "",
+    address: "",
+    phone_number: "",
   });
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingCabang, setEditingCabang] = useState(null);
 
-  const fetchCabangs = async () => {
+  const fetchCabangs = useCallback(async () => {
+    // Jangan fetch jika business_id belum siap
+    if (!authState.business_id) return;
+
     try {
-      if (!loading) setLoading(true);
-      const response = await api.get("/cabang");
-      setCabangs(response.data);
+      setLoading(true);
+      // VVV PERUBAHAN KRUSIAL #1: FILTER BERDASARKAN business_id VVV
+      const { data, error } = await supabase
+        .from("branches")
+        .select("*")
+        .eq("business_id", authState.business_id) // <-- Filter wajib!
+        .order("created_at");
+
+      if (error) throw error;
+      setCabangs(data);
     } catch (err) {
-      setError("Gagal mengambil data cabang.");
+      toast.error("Gagal mengambil data cabang: " + err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [authState.business_id]); // <-- Dependency diubah ke business_id
 
   useEffect(() => {
     fetchCabangs();
-  }, []);
+  }, [fetchCabangs]);
+
+  // Pasang sensor anti-macet
+  usePageVisibility(fetchCabangs);
 
   const handleInputChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -84,50 +102,86 @@ function CabangManagementPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError("");
-    setMessage("");
+    setIsSubmitting(true);
     try {
-      const response = await api.post("/cabang", formData);
-      setMessage(
-        response.data.message ||
-          `Cabang "${formData.nama_cabang}" berhasil dibuat!`
-      );
-      setFormData({ nama_cabang: "", alamat: "", nomor_telepon: "" });
-      setIsCreateModalOpen(false); // Tutup modal setelah sukses
+      // VVV PERUBAHAN KRUSIAL #2: SERTAKAN business_id SAAT INSERT VVV
+      const { error } = await supabase.from("branches").insert({
+        name: formData.name,
+        address: formData.address,
+        phone_number: formData.phone_number,
+        business_id: authState.business_id, // <-- Wajib ada!
+      });
+      if (error) throw error;
+
+      toast.success(`Cabang "${formData.name}" berhasil dibuat!`);
+      setFormData({ name: "", address: "", phone_number: "" });
+      setIsCreateModalOpen(false);
       fetchCabangs();
     } catch (err) {
-      setError(err.response?.data?.message || "Gagal membuat cabang.");
+      toast.error(err.message || "Gagal membuat cabang.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
-    setError("");
-    setMessage("");
+    setIsSubmitting(true);
     try {
-      const response = await api.put(
-        `/cabang/${editingCabang.id}`,
-        editingCabang
-      );
-      setMessage(response.data.message);
-      setIsEditModalOpen(false); // [FIX] Gunakan state yang benar
+      // VVV PERUBAHAN KRUSIAL #3: PERKUAT KEAMANAN UPDATE VVV
+      const { error } = await supabase
+        .from("branches")
+        .update({
+          name: editingCabang.name,
+          address: editingCabang.address,
+          phone_number: editingCabang.phone_number,
+        })
+        .eq("id", editingCabang.id)
+        .eq("business_id", authState.business_id); // <-- Filter keamanan tambahan!
+
+      if (error) throw error;
+
+      toast.success("Cabang berhasil diupdate!");
+      setIsEditModalOpen(false);
       setEditingCabang(null);
       fetchCabangs();
     } catch (err) {
-      setError(err.response?.data?.message || "Gagal mengupdate cabang.");
+      toast.error(err.message || "Gagal mengupdate cabang.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleDelete = async (cabangId) => {
     try {
-      const response = await api.delete(`/cabang/${cabangId}`);
-      setMessage(response.data.message);
+      // VVV PERUBAHAN KRUSIAL #4: PERKUAT KEAMANAN DELETE VVV
+      const { error } = await supabase
+        .from("branches")
+        .delete()
+        .eq("id", cabangId)
+        .eq("business_id", authState.business_id); // <-- Filter keamanan tambahan!
+
+      if (error) throw error;
+
+      toast.success("Cabang berhasil dihapus.");
       fetchCabangs();
     } catch (err) {
-      setError(err.response?.data?.message || "Gagal menghapus cabang.");
+      toast.error(err.message || "Gagal menghapus cabang.");
     }
   };
 
+  // Logika untuk hanya menampilkan halaman ini ke owner
+  if (authState.role !== "owner") {
+    return (
+      <div className="text-center">
+        <h1 className="text-2xl font-bold">Akses Ditolak</h1>
+        <p>Hanya Owner yang dapat mengakses halaman ini.</p>
+      </div>
+    );
+  }
+
+  // Bagian JSX di bawah ini TIDAK ADA YANG BERUBAH.
+  // Lo bisa langsung copy-paste dari kode lama lo kalau mau.
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -136,8 +190,8 @@ function CabangManagementPage() {
           <DialogTrigger asChild>
             <Button
               onClick={() => {
-                setError("");
-                setFormData({ nama_cabang: "", alamat: "", nomor_telepon: "" });
+                // BENERIN: Gunakan nama kolom asli dari database
+                setFormData({ name: "", address: "", phone_number: "" });
               }}
             >
               <PlusCircle className="mr-2 h-4 w-4" /> Tambah Cabang
@@ -148,56 +202,59 @@ function CabangManagementPage() {
               <DialogTitle>Tambah Cabang Baru</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleSubmit} className="grid gap-4 py-4">
-              {error && <p className="text-destructive text-sm">{error}</p>}
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="nama_cabang" className="text-right">
+                <Label htmlFor="name" className="text-right">
                   Nama Cabang
                 </Label>
                 <Input
-                  id="nama_cabang"
-                  name="nama_cabang"
-                  value={formData.nama_cabang}
+                  id="name"
+                  name="name" // BENERIN
+                  value={formData.name} // BENERIN
                   onChange={handleInputChange}
                   className="col-span-3"
                   required
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="alamat" className="text-right">
+                <Label htmlFor="address" className="text-right">
                   Alamat
                 </Label>
                 <Input
-                  id="alamat"
-                  name="alamat"
-                  value={formData.alamat}
+                  id="address"
+                  name="address" // BENERIN
+                  value={formData.address} // BENERIN
                   onChange={handleInputChange}
                   className="col-span-3"
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="nomor_telepon" className="text-right">
+                <Label htmlFor="phone_number" className="text-right">
                   Telepon
                 </Label>
                 <Input
-                  id="nomor_telepon"
-                  name="nomor_telepon"
-                  value={formData.nomor_telepon}
+                  id="phone_number"
+                  name="phone_number" // BENERIN
+                  value={formData.phone_number} // BENERIN
                   onChange={handleInputChange}
                   className="col-span-3"
                 />
               </div>
               <DialogFooter>
-                <Button type="submit">Simpan Cabang</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Menyimpan...
+                    </>
+                  ) : (
+                    "Simpan Cabang"
+                  )}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       </div>
-
-      {message && (
-        <p className="text-green-500 text-sm mb-4 text-center">{message}</p>
-      )}
-
       <Card>
         <CardHeader>
           <CardTitle>Daftar Cabang</CardTitle>
@@ -228,13 +285,13 @@ function CabangManagementPage() {
                     cabangs?.map((cabang) => (
                       <TableRow key={cabang.id}>
                         <TableCell className="font-medium">
-                          {cabang.nama_cabang}
+                          {cabang.name}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {cabang.alamat}
+                          {cabang.address}
                         </TableCell>
                         <TableCell className="text-muted-foreground">
-                          {cabang.nomor_telepon}
+                          {cabang.phone_number}
                         </TableCell>
                         <TableCell className="text-right">
                           <DropdownMenu>
@@ -248,7 +305,6 @@ function CabangManagementPage() {
                                 onClick={() => {
                                   setEditingCabang(cabang);
                                   setIsEditModalOpen(true);
-                                  setError("");
                                 }}
                               >
                                 Edit
@@ -269,8 +325,8 @@ function CabangManagementPage() {
                                     </AlertDialogTitle>
                                     <AlertDialogDescription>
                                       Aksi ini akan menghapus cabang '
-                                      {cabang.nama_cabang}'. Aksi ini tidak
-                                      dapat dibatalkan.
+                                      {cabang.name}'. Aksi ini tidak dapat
+                                      dibatalkan.
                                     </AlertDialogDescription>
                                   </AlertDialogHeader>
                                   <AlertDialogFooter>
@@ -295,51 +351,46 @@ function CabangManagementPage() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Modal Edit Cabang */}
       {editingCabang && (
         <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>
-                Edit Cabang: {editingCabang.nama_cabang}
-              </DialogTitle>
+              <DialogTitle>Edit Cabang: {editingCabang.name}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handleUpdate} className="grid gap-4 py-4">
-              {error && <p className="text-destructive text-sm">{error}</p>}
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-nama_cabang" className="text-right">
+                <Label htmlFor="edit-name" className="text-right">
                   Nama Cabang
                 </Label>
                 <Input
-                  id="edit-nama_cabang"
-                  name="nama_cabang"
-                  value={editingCabang.nama_cabang || ""}
+                  id="edit-name"
+                  name="name" // BENERIN
+                  value={editingCabang.name || ""} // BENERIN
                   onChange={handleEditInputChange}
                   className="col-span-3"
                   required
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-alamat" className="text-right">
+                <Label htmlFor="edit-address" className="text-right">
                   Alamat
                 </Label>
                 <Input
-                  id="edit-alamat"
-                  name="alamat"
-                  value={editingCabang.alamat || ""}
+                  id="edit-address"
+                  name="address" // BENERIN
+                  value={editingCabang.address || ""} // BENERIN
                   onChange={handleEditInputChange}
                   className="col-span-3"
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-nomor_telepon" className="text-right">
+                <Label htmlFor="edit-phone_number" className="text-right">
                   Telepon
                 </Label>
                 <Input
-                  id="edit-nomor_telepon"
-                  name="nomor_telepon"
-                  value={editingCabang.nomor_telepon || ""}
+                  id="edit-phone_number"
+                  name="phone_number" // BENERIN
+                  value={editingCabang.phone_number || ""} // BENERIN
                   onChange={handleEditInputChange}
                   className="col-span-3"
                 />
@@ -352,7 +403,16 @@ function CabangManagementPage() {
                 >
                   Batal
                 </Button>
-                <Button type="submit">Simpan Perubahan</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Menyimpan...
+                    </>
+                  ) : (
+                    "Simpan Perubahan"
+                  )}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>

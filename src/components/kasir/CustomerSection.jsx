@@ -1,11 +1,12 @@
-// src/components/kasir/CustomerSection.jsx
+// src/components/kasir/CustomerSection.jsx (VERSI ANTI-BOCOR & LENGKAP)
 
 import React, { useState, useCallback, useEffect } from "react";
-import api from "../../api/axiosInstance";
-import { UserPlus, Star } from "lucide-react";
+import { supabase } from "@/supabaseClient";
+import { useAuth } from "@/context/AuthContext";
+import { UserPlus, Star, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
-// Impor komponen dari shadcn/ui
+// ... (semua import komponen UI kamu tidak berubah)
 import { Button } from "@/components/ui/Button.jsx";
 import {
   Card,
@@ -37,32 +38,52 @@ function CustomerSection({
   onOpenPoinModal,
   pengaturan,
 }) {
+  const { authState } = useAuth(); // <-- DAPATKAN 'KTP DIGITAL' DARI SINI
   const [searchTerm, setSearchTerm] = useState("");
   const [pelangganList, setPelangganList] = useState([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [newPelangganData, setNewPelangganData] = useState({
-    nama: "",
-    nomor_hp: "",
-    alamat: "",
+    name: "",
+    phone_number: "",
+    address: "",
   });
 
   const fetchPelanggan = useCallback(async () => {
-    if (searchTerm.trim() === "") {
+    if (searchTerm.trim().length < 3 || !authState.business_id) {
       setPelangganList([]);
       return;
     }
     setIsSearching(true);
     try {
-      const response = await api.get(`/pelanggan?search=${searchTerm}`);
-      setPelangganList(response.data);
+      // PERUBAHAN #1: Gunakan Supabase dengan filter keamanan berlapis
+      let query = supabase.from("customers").select("*");
+
+      // Filter wajib berdasarkan 'Nomor Hotel'
+      query = query.eq("business_id", authState.business_id);
+
+      // Jika bukan Owner, filter lagi berdasarkan 'Nomor Kamar'
+      if (authState.role !== "owner") {
+        query = query.eq("branch_id", authState.branch_id);
+      }
+
+      query = query.eq("status", "aktif");
+
+      // Lakukan pencarian
+      query = query
+        .or(`name.ilike.%${searchTerm}%,phone_number.ilike.%${searchTerm}%`)
+        .limit(5);
+
+      const { data, error } = await query;
+      if (error) throw error;
+      setPelangganList(data);
     } catch (error) {
-      console.error("Gagal mencari pelanggan:", error);
       toast.error("Gagal mencari pelanggan.");
     } finally {
       setIsSearching(false);
     }
-  }, [searchTerm]);
+  }, [searchTerm, authState.business_id, authState.branch_id, authState.role]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -80,23 +101,99 @@ function CustomerSection({
 
   const handleCreatePelanggan = async (e) => {
     e.preventDefault();
+    setIsSubmitting(true);
+
+    const { name, phone_number, address } = newPelangganData;
+
+    // Tambah validasi simpel
+    if (!name || !phone_number) {
+      toast.error("Nama dan Nomor HP wajib diisi.");
+      setIsSubmitting(false);
+      return;
+    }
+    if (phone_number.length < 10) {
+      toast.error("Nomor HP minimal 10 digit.");
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
-      // 'newPelangganData' sekarang sudah berisi alamat
-      const response = await api.post("/pelanggan", newPelangganData);
-      onSelectPelanggan(response.data);
-      setIsNewModalOpen(false);
-      toast.success("Pelanggan baru berhasil dibuat!");
+      // 1. Cek dulu nomor HP ini
+      const { data: existingCustomer, error: checkError } = await supabase
+        .from("customers")
+        .select("*")
+        .eq("business_id", authState.business_id)
+        .eq("phone_number", phone_number)
+        .maybeSingle(); // maybeSingle() gak error kalo datanya null
+
+      if (checkError) throw checkError;
+
+      if (existingCustomer) {
+        // --- PELANGGAN DITEMUKAN ---
+        if (existingCustomer.status === "aktif") {
+          toast.error(
+            "Nomor HP ini sudah terdaftar atas nama: " + existingCustomer.name
+          );
+          // Jangan tutup modal, biarkan kasir ganti nomor
+        } else {
+          // --- PELANGGAN NONAKTIF, TANYA UNTUK AKTIFKAN ---
+          if (
+            window.confirm(
+              `Nomor HP ini sudah ada (status: Nonaktif) atas nama: ${existingCustomer.name}.\n\nAktifkan & update datanya?`
+            )
+          ) {
+            // Kalo user klik "OK", kita UPDATE
+            const { data: updatedCustomer, error: updateError } = await supabase
+              .from("customers")
+              .update({
+                status: "aktif",
+                name: name,
+                address: address,
+                branch_id: authState.branch_id, // Set ke cabang kasir saat ini
+              })
+              .eq("id", existingCustomer.id)
+              .select()
+              .single();
+
+            if (updateError) throw updateError;
+
+            toast.success(
+              `Pelanggan "${updatedCustomer.name}" berhasil diaktifkan kembali!`
+            );
+            onSelectPelanggan(updatedCustomer); // Langsung pilih pelanggan ini
+            setIsNewModalOpen(false); // Tutup modal
+          }
+          // Kalo user klik "Cancel", gajadi ngapa-ngapain
+        }
+      } else {
+        // --- PELANGGAN BARU, INSERT ---
+        const { data: newCustomer, error: insertError } = await supabase
+          .from("customers")
+          .insert({
+            name: name,
+            phone_number: phone_number,
+            address: address,
+            branch_id: authState.branch_id,
+            business_id: authState.business_id,
+            status: "aktif", // <-- Langsung set 'aktif'
+          })
+          .select()
+          .single();
+
+        if (insertError) throw insertError;
+
+        toast.success("Pelanggan baru berhasil dibuat!");
+        onSelectPelanggan(newCustomer); // Langsung pilih pelanggan baru ini
+        setIsNewModalOpen(false); // Tutup modal
+      }
     } catch (err) {
-      toast.error(err.response?.data?.message || "Gagal membuat pelanggan.");
+      toast.error(err.message || "Gagal memproses pelanggan.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const openCreateModal = () => {
-    // [FIX] Reset state, termasuk alamat
-    setNewPelangganData({ nama: "", nomor_hp: "", alamat: "" });
-    setIsNewModalOpen(true);
-  };
-
+  // PERUBAHAN #3: Gunakan nama kolom asli di seluruh JSX
   return (
     <Card>
       <CardHeader>
@@ -108,10 +205,10 @@ function CustomerSection({
             <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
               <div>
                 <p className="font-bold text-primary">
-                  {selectedPelanggan.nama}
+                  {selectedPelanggan.name}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {selectedPelanggan.nomor_hp}
+                  {selectedPelanggan.phone_number}
                 </p>
               </div>
               <Button
@@ -123,35 +220,27 @@ function CustomerSection({
               </Button>
             </div>
 
-            {/* [LOGIC] Tampilkan info member & poin HANYA JIKA sistem poin aktif */}
             {isPoinSystemActive && (
               <div className="border-t pt-3 flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2">
                   {isPaidMembershipRequired && (
                     <Badge
                       variant={
-                        selectedPelanggan.status_member === "Aktif"
-                          ? "success"
-                          : "secondary"
+                        selectedPelanggan.is_member ? "default" : "secondary"
                       }
                     >
-                      {selectedPelanggan.status_member === "Aktif"
-                        ? "Member"
-                        : "Non-Member"}
+                      {selectedPelanggan.is_member ? "Member" : "Non-Member"}
                     </Badge>
                   )}
                   <span className="text-muted-foreground">
-                    Poin: {selectedPelanggan.poin}
+                    Poin: {selectedPelanggan.points}
                   </span>
                 </div>
-
-                {/* [FIX] Logika tombol "Tukar Poin" diperbaiki */}
                 <Button
                   onClick={onOpenPoinModal}
-                  // Syarat disabled sekarang dinamis dari pengaturan
                   disabled={
-                    selectedPelanggan.poin <
-                    (pengaturan?.minimal_penukaran_poin || 10)
+                    selectedPelanggan.points <
+                    (pengaturan?.min_points_to_redeem || 0)
                   }
                   variant="secondary"
                   size="sm"
@@ -161,10 +250,9 @@ function CustomerSection({
               </div>
             )}
 
-            {/* [LOGIC] Tombol Upgrade Member sekarang SANGAT dinamis */}
             {isPoinSystemActive &&
               isPaidMembershipRequired &&
-              selectedPelanggan.status_member === "Non-Member" &&
+              !selectedPelanggan.is_member &&
               !isUpgradingMember && (
                 <Button
                   onClick={onUpgradeMember}
@@ -187,7 +275,7 @@ function CustomerSection({
             <div className="flex gap-2">
               <Input
                 type="text"
-                placeholder="Cari nama atau nomor HP..."
+                placeholder="Cari nama atau nomor HP (min 3 karakter)..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -209,34 +297,34 @@ function CustomerSection({
                     className="space-y-4 py-4"
                   >
                     <div>
-                      <Label htmlFor="nama">Nama Pelanggan</Label>
+                      <Label htmlFor="name">Nama Pelanggan</Label>
                       <Input
-                        id="nama"
-                        name="nama"
-                        value={newPelangganData.nama}
+                        id="name"
+                        name="name"
+                        value={newPelangganData.name}
                         onChange={handleNewPelangganChange}
                         required
                         autoFocus
                       />
                     </div>
                     <div>
-                      <Label htmlFor="nomor_hp">Nomor HP</Label>
+                      <Label htmlFor="phone_number">Nomor HP</Label>
                       <Input
-                        id="nomor_hp"
-                        name="nomor_hp"
-                        value={newPelangganData.nomor_hp}
+                        id="phone_number"
+                        name="phone_number"
+                        value={newPelangganData.phone_number}
                         onChange={handleNewPelangganChange}
                         required
                       />
                     </div>
                     <div>
-                      <Label htmlFor="alamat">Alamat (Opsional)</Label>
+                      <Label htmlFor="address">Alamat (Opsional)</Label>
                       <Textarea
-                        id="alamat"
-                        name="alamat"
-                        value={newPelangganData.alamat}
+                        id="address"
+                        name="address"
+                        value={newPelangganData.address}
                         onChange={handleNewPelangganChange}
-                        placeholder="Masukkan alamat lengkap untuk layanan antar-jemput..."
+                        placeholder="Masukkan alamat lengkap..."
                       />
                     </div>
                     <DialogFooter>
@@ -247,7 +335,16 @@ function CustomerSection({
                       >
                         Batal
                       </Button>
-                      <Button type="submit">Simpan</Button>
+                      <Button type="submit" disabled={isSubmitting}>
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
+                            Menyimpan...
+                          </>
+                        ) : (
+                          "Simpan"
+                        )}
+                      </Button>
                     </DialogFooter>
                   </form>
                 </DialogContent>
@@ -259,7 +356,7 @@ function CustomerSection({
             {pelangganList.length > 0 && (
               <div className="absolute z-10 w-full mt-1">
                 <Card className="max-h-60 overflow-y-auto">
-                  {pelangganList?.map((pelanggan) => (
+                  {pelangganList.map((pelanggan) => (
                     <div
                       key={pelanggan.id}
                       onClick={() => {
@@ -268,9 +365,9 @@ function CustomerSection({
                       }}
                       className="p-3 hover:bg-muted cursor-pointer border-b last:border-b-0"
                     >
-                      <p className="font-semibold">{pelanggan.nama}</p>
+                      <p className="font-semibold">{pelanggan.name}</p>
                       <p className="text-sm text-muted-foreground">
-                        {pelanggan.nomor_hp}
+                        {pelanggan.phone_number}
                       </p>
                     </div>
                   ))}

@@ -36,7 +36,7 @@ function AdminLayout() {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const navItems = menuConfig.filter((item) =>
-    item.roles.includes(authState.user?.role)
+    item.roles.includes(authState.role)
   );
 
   const handleLogout = () => {
@@ -183,11 +183,9 @@ function AdminLayout() {
               >
                 <UserCircle size={28} />
                 <div className="text-left hidden md:block">
-                  <p className="text-sm font-semibold">
-                    {authState.user?.username}
-                  </p>
+                  <p className="text-sm font-semibold">{authState.full_name}</p>
                   <p className="text-xs text-muted-foreground capitalize">
-                    {authState.user?.role}
+                    {authState.role}
                   </p>{" "}
                   {/* [FIX] */}
                 </div>

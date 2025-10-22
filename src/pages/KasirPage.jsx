@@ -1,18 +1,20 @@
-// src/pages/KasirPage.jsx
+// src/pages/KasirPage.jsx (VERSI FINAL & ANTI-BOCOR)
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import api from "../api/axiosInstance";
+import { supabase } from "@/supabaseClient";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
+import { usePageVisibility } from "@/lib/usePageVisibility.js";
+
+// Komponen & Ikon
 import CustomerSection from "../components/kasir/CustomerSection";
 import ServiceSelector from "../components/kasir/ServiceSelector.jsx";
 import Cart from "../components/kasir/Cart";
 import Struk from "../components/struk/Struk";
-import PrintStrukButton from "../components/struk/PrintStrukButton"; // Jangan lupa import ini
-import { useAuth } from "@/context/AuthContext";
-import { toast } from "sonner";
-import { CheckCircle } from "lucide-react";
+import PrintStrukButton from "../components/struk/PrintStrukButton";
+import { CheckCircle, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/Textarea.jsx";
-
 import { Button } from "@/components/ui/Button.jsx";
 import {
   Card,
@@ -32,20 +34,27 @@ import {
 import { Input } from "@/components/ui/Input.jsx";
 import { Label } from "@/components/ui/Label.jsx";
 
+// NOTE: Pastikan semua komponen di atas (CustomerSection, Cart, dll) juga sudah di-update
+// untuk menggunakan nama kolom yang benar (misal: props.pelanggan.name, bukan .nama)
+
 function KasirPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { authState } = useAuth();
 
-  const isPoinSystemActive =
-    authState.pengaturan?.skema_poin_aktif !== "nonaktif";
+  // ==========================================================
+  // BAGIAN INI 100% DITERJEMAHKAN KE "KAMUS FINAL"
+  // ==========================================================
+  const isPoinSystemActive = authState.pengaturan?.points_scheme !== "nonaktif";
   const isPaidMembershipRequired =
-    authState.pengaturan?.wajib_membership_berbayar;
-  const isBonusMerchandiseActive =
-    authState.pengaturan?.apakah_bonus_merchandise_aktif;
+    authState.pengaturan?.require_paid_membership;
+  const isBonusMerchandiseActive = authState.pengaturan?.is_merch_bonus_active;
   const merchandiseName =
-    authState.pengaturan?.nama_merchandise || "Merchandise";
+    authState.pengaturan?.merch_bonus_name || "Merchandise";
+  const BIAYA_MEMBER = authState.pengaturan?.membership_fee || 0;
+  // ==========================================================
 
+  // State
   const [selectedPelanggan, setSelectedPelanggan] = useState(null);
   const [isUpgradingMember, setIsUpgradingMember] = useState(false);
   const [cart, setCart] = useState([]);
@@ -61,68 +70,48 @@ function KasirPage() {
   const [detailTransaksiSukses, setDetailTransaksiSukses] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const strukRef = useRef();
-
-  const [allKategoriData, setAllKategoriData] = useState([]); // Untuk menyimpan data mentah dari API
-  const [kategoriOptions, setKategoriOptions] = useState([]); // Untuk dropdown Kategori
-  const [layananOptions, setLayananOptions] = useState([]); // Untuk dropdown Layanan
-  const [paketOptions, setPaketOptions] = useState([]); // Untuk dropdown Paket
-
+  const [allCategories, setAllCategories] = useState([]);
   const [isPoinModalOpen, setIsPoinModalOpen] = useState(false);
   const [formError, setFormError] = useState("");
   const [poinInput, setPoinInput] = useState("");
-
   const [tipeLayanan, setTipeLayanan] = useState("dine_in");
   const [jarakKm, setJarakKm] = useState("");
   const [biayaLayanan, setBiayaLayanan] = useState(0);
   const [isAlamatModalOpen, setIsAlamatModalOpen] = useState(false);
   const [alamatToEdit, setAlamatToEdit] = useState("");
+  const [isStrukReady, setIsStrukReady] = useState(false);
 
-  const BIAYA_MEMBER = authState.pengaturan?.biaya_membership || 50000;
-
+  // Handler dan Fungsi Logika
   const handleSelectPelanggan = (pelanggan) => {
     setSelectedPelanggan(pelanggan);
-    // Reset state terkait transaksi sebelumnya
+    // Reset semua state transaksi
+    setCart([]);
     setIsUpgradingMember(false);
     setPoinUntukDitukar(0);
-    setCart([]);
-    // Reset juga pilihan layanan
+    setDiskonPoin(0);
     setTipeLayanan("dine_in");
     setJarakKm("");
   };
 
   const handleUpgradeMember = () => {
-    const sudahAdaBiayaMember = cart.some((item) => item.id === "member-fee");
-    if (!sudahAdaBiayaMember) {
-      setCart([
-        ...cart,
-        {
-          id: "member-fee",
-          nama_paket: "Biaya Upgrade Membership",
-          harga: BIAYA_MEMBER,
-          jumlah: 1,
-          satuan: "pcs",
-          subtotal: BIAYA_MEMBER,
-        },
-      ]);
-      setIsUpgradingMember(true);
-    }
+    setIsUpgradingMember(!isUpgradingMember);
   };
 
   const addItemToCart = (itemToAdd, jumlah) => {
-    let jumlahFinal = jumlah;
-    if (itemToAdd.minimal_order && jumlah < itemToAdd.minimal_order) {
-      jumlahFinal = itemToAdd.minimal_order;
+    let jumlahFinal = parseFloat(jumlah) || 1;
+    if (itemToAdd.min_order && jumlahFinal < itemToAdd.min_order) {
+      jumlahFinal = itemToAdd.min_order;
       toast.info("Minimal Order Diterapkan", {
-        description: `Paket "${itemToAdd.nama_paket}" memiliki minimal order ${itemToAdd.minimal_order} ${itemToAdd.satuan}. Jumlah otomatis disesuaikan.`,
+        description: `Paket "${itemToAdd.name}" memiliki minimal order ${itemToAdd.min_order} ${itemToAdd.unit}.`,
       });
     }
     const existingItem = cart.find((item) => item.id === itemToAdd.id);
     if (existingItem) {
       const newJumlah = existingItem.jumlah + jumlahFinal;
       setCart(
-        cart?.map((item) =>
+        cart.map((item) =>
           item.id === itemToAdd.id
-            ? { ...item, jumlah: newJumlah, subtotal: newJumlah * item.harga }
+            ? { ...item, jumlah: newJumlah, subtotal: newJumlah * item.price }
             : item
         )
       );
@@ -132,7 +121,7 @@ function KasirPage() {
         {
           ...itemToAdd,
           jumlah: jumlahFinal,
-          subtotal: jumlahFinal * itemToAdd.harga,
+          subtotal: jumlahFinal * itemToAdd.price,
         },
       ]);
     }
@@ -140,75 +129,110 @@ function KasirPage() {
 
   const handleRemoveFromCart = (itemId) => {
     const newCart = cart.filter((item) => item.id !== itemId);
-    if (itemId === "member-fee") setIsUpgradingMember(false);
     setCart(newCart);
   };
 
   const handleProsesTransaksi = async () => {
-    if (!selectedPelanggan || cart.length === 0)
-      return toast.error("Pelanggan dan item keranjang tidak boleh kosong.");
+    if (!selectedPelanggan || (cart.length === 0 && !isUpgradingMember))
+      return toast.error(
+        "Pelanggan dan item keranjang/upgrade member tidak boleh kosong."
+      );
     if (statusPembayaran === "Lunas" && !metodePembayaran)
       return toast.error("Pilih metode pembayaran.");
+
     setIsProcessing(true);
-    const regularItems = cart.filter((item) => item.id !== "member-fee");
+
     const transaksiData = {
       id_pelanggan: selectedPelanggan.id,
       catatan,
       status_pembayaran: statusPembayaran,
       metode_pembayaran: statusPembayaran === "Lunas" ? metodePembayaran : null,
-      items: regularItems?.map((item) => ({
-        id_paket: item.id,
-        jumlah: item.jumlah,
-      })),
+      items: cart.map((item) => ({ id_paket: item.id, jumlah: item.jumlah })),
       poin_ditukar: poinUntukDitukar,
-      bonus_merchandise_dibawa: bonusMerchandiseDibawa,
       upgrade_member: isUpgradingMember,
       tipe_layanan: tipeLayanan,
       jarak_km: parseFloat(jarakKm) || 0,
+      bonus_merchandise_dibawa: bonusMerchandiseDibawa,
     };
+
     try {
-      const response = await api.post("/transaksi", transaksiData);
-      const detailResponse = await api.get(
-        `/transaksi/${response.data.data.kode_invoice}`
+      const { data: newInvoiceCode, error } = await supabase.rpc(
+        "create_new_order",
+        { payload: transaksiData }
       );
-      setDetailTransaksiSukses(detailResponse.data);
-      setTransaksiSuccess(response.data.data);
+      if (error) throw error;
+
+      const { data: detailResponse, error: detailError } = await supabase
+        .from("orders")
+        .select(`*, customers(*), branches(*), order_items(*, packages(*))`)
+        .eq("invoice_code", newInvoiceCode)
+        .eq("business_id", authState.business_id)
+        .single();
+      if (detailError) throw detailError;
+
+      setDetailTransaksiSukses(detailResponse);
+      setTransaksiSuccess({ invoice_code: newInvoiceCode });
       toast.success("Transaksi berhasil dibuat!");
     } catch (err) {
-      toast.error(
-        "Gagal membuat transaksi: " +
-          (err.response?.data?.message || err.message)
-      );
+      toast.error("Gagal membuat transaksi: " + err.message);
     } finally {
       setIsProcessing(false);
     }
   };
 
+  const [loadingWA, setLoadingWA] = useState(false);
+
   const handleKirimWA = async () => {
-    if (!detailTransaksiSukses) return;
+    if (!detailTransaksiSukses || loadingWA) return; // <-- Tambah loadingWA
+    setLoadingWA(true); // <-- Tambah ini
+
     try {
-      // Minta pesan dari backend
-      const response = await api.post("/transaksi/generate-wa-message", {
-        kode_invoice: detailTransaksiSukses.kode_invoice,
-        tipe_pesan: "struk",
+      // Panggilan RPC lu udah bener
+      const { data, error } = await supabase.rpc("generate_wa_message", {
+        payload: {
+          invoice_code: detailTransaksiSukses.invoice_code,
+          tipe_pesan: "struk",
+        },
       });
 
-      const { pesan, nomor_hp } = response.data;
+      if (error) throw error;
+      if (data.message) throw new Error(data.message);
 
-      // Buka link WhatsApp dengan pesan dari backend
-      const nomorHPFormatted = nomor_hp.startsWith("0")
-        ? "62" + nomor_hp.substring(1)
-        : nomor_hp;
-      const url = `https://wa.me/${nomorHPFormatted}?text=${encodeURIComponent(
+      const { pesan, nomor_hp } = data;
+
+      // VVV 1. TAMBAHIN "PENJAGA" ANTI CRASH VVV
+      const nomorHPNormalized = (nomor_hp || "").trim();
+      if (!nomorHPNormalized) {
+        toast.error("Nomor HP pelanggan tidak ditemukan atau tidak valid.");
+        setLoadingWA(false);
+        return;
+      }
+
+      const nomorHPFormatted = nomorHPNormalized.startsWith("0")
+        ? "62" + nomorHPNormalized.substring(1)
+        : nomorHPNormalized;
+      // ^^^ SELESAI PENJAGA ^^^
+
+      // VVV 2. GANTI DOMAIN KE "API.WHATSAPP.COM" VVV
+      const url = `https://api.whatsapp.com/send?phone=${nomorHPFormatted}&text=${encodeURIComponent(
         pesan
       )}`;
+      // ^^^ SELESAI GANTI DOMAIN ^^^
+
+      console.log("MENCOBA MEMBUKA (API):", url);
+      console.log("PANJANG URL:", url.length);
+
       window.open(url, "_blank");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Gagal membuat pesan WA.");
+      console.error("DEBUG kirimWA:", error); // <-- Tambah console.error
+      toast.error(error.message || "Gagal membuat pesan WA.");
+    } finally {
+      setLoadingWA(false); // <-- Tambah ini
     }
   };
 
   const resetForm = () => {
+    // Fungsi ini sudah bagus, tidak perlu diubah.
     setCart([]);
     setSelectedPelanggan(null);
     setCatatan("");
@@ -225,21 +249,24 @@ function KasirPage() {
     navigate("/kasir", { replace: true, state: {} });
   };
 
+  // BENERIN: Gunakan nama kolom dari "Kamus Final"
   const handlePoinSubmit = (e) => {
     e.preventDefault();
     const poin = parseInt(poinInput);
-    if (!poin || poin < (authState.pengaturan?.minimal_penukaran_poin || 10))
+    if (!poin || poin < (authState.pengaturan?.min_points_to_redeem || 0))
       return setFormError(
         `Penukaran minimal ${
-          authState.pengaturan?.minimal_penukaran_poin || 10
+          authState.pengaturan?.min_points_to_redeem || 0
         } poin.`
       );
-    if (poin > selectedPelanggan.poin)
+    if (poin > selectedPelanggan.points)
       return setFormError("Poin pelanggan tidak mencukupi.");
 
-    const diskon = poin * (authState.pengaturan?.rupiah_per_poin_redeem || 0);
-    if (diskon >= subtotal)
-      return setFormError("Diskon tidak boleh melebihi subtotal.");
+    const diskon = poin * (authState.pengaturan?.rupiah_per_point_redeem || 0);
+    const totalBelanja =
+      subtotal + (isUpgradingMember ? BIAYA_MEMBER : 0) + biayaLayanan;
+    if (diskon > totalBelanja)
+      return setFormError("Diskon tidak boleh melebihi total belanja.");
 
     setDiskonPoin(diskon);
     setPoinUntukDitukar(poin);
@@ -250,116 +277,134 @@ function KasirPage() {
 
   useEffect(() => {
     const newSubtotal = cart.reduce((total, item) => total + item.subtotal, 0);
-    setSubtotal(newSubtotal);
-    // [FIX] Tambahkan biayaLayanan ke dalam grand total
-    setGrandTotal(newSubtotal - diskonPoin + biayaLayanan);
-  }, [cart, diskonPoin, biayaLayanan]); // <-- Jangan lupa tambahkan biayaLayanan di sini
+    let totalBiayaLayanan = 0;
 
+    if (authState.pengaturan?.is_delivery_service_active) {
+      const {
+        delivery_free_pickup_distance,
+        delivery_pickup_fee,
+        delivery_free_dropoff_distance,
+        delivery_dropoff_fee,
+      } = authState.pengaturan;
+      const jarak = parseFloat(jarakKm) || 0;
+      if (
+        tipeLayanan.includes("jemput") &&
+        jarak > delivery_free_pickup_distance
+      ) {
+        totalBiayaLayanan += delivery_pickup_fee;
+      }
+      if (
+        tipeLayanan.includes("antar") &&
+        jarak > delivery_free_dropoff_distance
+      ) {
+        totalBiayaLayanan += delivery_dropoff_fee;
+      }
+    }
+
+    // KEMBALIKAN 'upgradeCost'
+    const upgradeCost = isUpgradingMember ? BIAYA_MEMBER : 0;
+
+    setSubtotal(newSubtotal);
+    setBiayaLayanan(totalBiayaLayanan);
+
+    // KEMBALIKAN 'upgradeCost' DI GRAND TOTAL
+    setGrandTotal(newSubtotal + upgradeCost + totalBiayaLayanan - diskonPoin);
+  }, [
+    cart,
+    diskonPoin,
+    tipeLayanan,
+    jarakKm,
+    authState.pengaturan,
+    isUpgradingMember, // <-- KEMBALIKAN INI
+    BIAYA_MEMBER, // <-- KEMBALIKAN INI
+  ]);
+
+  // useEffect untuk mereset state saat pelanggan berubah (sudah benar)
   useEffect(() => {
     setIsUpgradingMember(false);
     setDiskonPoin(0);
     setPoinUntukDitukar(0);
   }, [selectedPelanggan]);
 
+  // useEffect untuk mengambil data pelanggan dari state navigasi (sudah benar)
   useEffect(() => {
-    if (location.state?.pelangganTerpilih) {
-      setSelectedPelanggan(location.state.pelangganTerpilih);
+    // VVV Benerin di sini VVV
+    if (location.state?.selectedCustomer) {
+      setSelectedPelanggan(location.state.selectedCustomer);
+
+      // Hapus state-nya biar nggak nyangkut pas di-refresh
+      navigate(location.pathname, { replace: true, state: {} });
     }
-  }, [location.state]);
+    // ^^^ Selesai ^^^
+  }, [location.state, location.pathname, navigate]);
 
   useEffect(() => {
-    if (!authState.pengaturan?.layanan_antar_jemput_aktif) {
-      setBiayaLayanan(0);
-      return;
+    // Reset status kesiapan setiap kali data transaksi berubah (atau hilang)
+    setIsStrukReady(false);
+
+    if (detailTransaksiSukses) {
+      // Beri jeda SANGAT SINGKAT (misal 100ms) agar komponen Struk
+      // sempat render dan menempelkan dirinya ke ref.
+      const timer = setTimeout(() => {
+        if (strukRef.current) {
+          setIsStrukReady(true); // <-- NYALAKAN SAKLAR KESIAPAN
+          console.log("LOG: Komponen Struk siap, ref terpasang.");
+        } else {
+          console.error("ERROR: Ref struk masih kosong setelah jeda render.");
+          toast.warning("Komponen struk gagal dimuat, coba refresh.");
+        }
+      }, 100); // Jeda 100 milidetik (bisa disesuaikan jika perlu)
+
+      // Jangan lupa bersihkan timeout jika komponen unmount atau data berubah lagi
+      return () => clearTimeout(timer);
     }
-
-    const {
-      batas_jarak_gratis_jemput,
-      biaya_jemput_jarak,
-      batas_jarak_gratis_antar,
-      biaya_antar_jarak,
-    } = authState.pengaturan;
-
-    const jarak = parseFloat(jarakKm) || 0;
-    let biayaJemput = 0;
-    let biayaAntar = 0;
-
-    // Hitung biaya jemput
-    if (tipeLayanan === "jemput" || tipeLayanan === "antar_jemput") {
-      if (jarak > batas_jarak_gratis_jemput) {
-        biayaJemput = biaya_jemput_jarak;
-      }
-    }
-
-    // Hitung biaya antar
-    if (tipeLayanan === "antar" || tipeLayanan === "antar_jemput") {
-      if (jarak > batas_jarak_gratis_antar) {
-        biayaAntar = biaya_antar_jarak;
-      }
-    }
-
-    setBiayaLayanan(biayaJemput + biayaAntar);
-  }, [tipeLayanan, jarakKm, authState.pengaturan]);
+  }, [detailTransaksiSukses]);
 
   const handleOpenAlamatModal = () => {
     if (!selectedPelanggan) return;
-    setAlamatToEdit(selectedPelanggan.alamat || "");
+    setAlamatToEdit(selectedPelanggan.address || "");
     setIsAlamatModalOpen(true);
   };
 
+  // UPGRADE: Fungsi fetchServices sekarang pake Supabase
+  const fetchServices = useCallback(async () => {
+    if (!authState.business_id) return;
+    try {
+      const { data, error } = await supabase
+        .from("categories")
+        .select("*, services(*, packages(*))")
+        .eq("business_id", authState.business_id);
+      if (error) throw error;
+      setAllCategories(data);
+    } catch (error) {
+      toast.error("Gagal memuat data layanan & paket.");
+    }
+  }, [authState.business_id]);
+
   useEffect(() => {
-    const fetchServices = async () => {
-      try {
-        const response = await api.get("/layanan"); // Endpoint yang mengembalikan Kategori > Layanan > Paket
-        setAllKategoriData(response.data);
-        setKategoriOptions(response.data); // Langsung set untuk pilihan Kategori awal
-      } catch (error) {
-        toast.error("Gagal memuat data layanan & paket.");
-      }
-    };
     fetchServices();
-  }, []);
+  }, [fetchServices]);
 
-  const handleKategoriChange = (kategoriId) => {
-    const selectedKategori = allKategoriData.find(
-      (k) => k.id === parseInt(kategoriId)
-    );
+  usePageVisibility(fetchServices);
 
-    if (selectedKategori) {
-      setLayananOptions(selectedKategori.layanans || []);
-    } else {
-      setLayananOptions([]);
-    }
-    // Reset pilihan paket setiap kali kategori berubah
-    setPaketOptions([]);
-  };
-
-  const handleLayananChange = (layananId) => {
-    // Cari layanan yang dipilih di dalam data yang kita punya
-    for (const kategori of allKategoriData) {
-      const selectedLayanan = kategori.layanans?.find(
-        (l) => l.id === parseInt(layananId)
-      );
-      if (selectedLayanan) {
-        setPaketOptions(selectedLayanan.pakets || []);
-        break; // Hentikan loop jika sudah ketemu
-      }
-    }
-  };
-
-  // [BARU] Fungsi untuk mengirim update alamat ke backend
+  // UPGRADE: Fungsi update alamat sekarang pake Supabase dan anti-bocor
   const handleUpdateAlamat = async (e) => {
     e.preventDefault();
     try {
-      const response = await api.put(`/pelanggan/${selectedPelanggan.id}`, {
-        alamat: alamatToEdit,
-      });
-      // Update state pelanggan yang dipilih dengan data terbaru dari server
-      setSelectedPelanggan(response.data.data);
+      const { data, error } = await supabase
+        .from("customers")
+        .update({ address: alamatToEdit })
+        .eq("id", selectedPelanggan.id)
+        .eq("business_id", authState.business_id) // <-- Keamanan!
+        .select()
+        .single();
+
+      if (error) throw error;
+      setSelectedPelanggan(data); // Update state dengan data baru yang aman
       toast.success("Alamat pelanggan berhasil diupdate!");
       setIsAlamatModalOpen(false);
     } catch (error) {
-      toast.error(error.response?.data?.message || "Gagal mengupdate alamat.");
+      toast.error(error.message || "Gagal mengupdate alamat.");
     }
   };
 
@@ -380,12 +425,9 @@ function KasirPage() {
                 onOpenPoinModal={() => setIsPoinModalOpen(true)}
                 pengaturan={authState.pengaturan}
               />
+              {/* BENERIN: Panggil ServiceSelector dengan props baru yang lebih simpel */}
               <ServiceSelector
-                kategoriOptions={kategoriOptions}
-                layananOptions={layananOptions}
-                paketOptions={paketOptions}
-                onKategoriChange={handleKategoriChange}
-                onLayananChange={handleLayananChange}
+                categories={allCategories}
                 onAddToCart={addItemToCart}
               />
             </div>
@@ -405,6 +447,7 @@ function KasirPage() {
                 metodePembayaran={metodePembayaran}
                 setMetodePembayaran={setMetodePembayaran}
                 isPoinSystemActive={isPoinSystemActive}
+                isUpgradingMember={isUpgradingMember}
                 isBonusMerchandiseActive={isBonusMerchandiseActive}
                 merchandiseName={merchandiseName}
                 bonusMerchandiseDibawa={bonusMerchandiseDibawa}
@@ -427,34 +470,44 @@ function KasirPage() {
             <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
             <CardTitle className="text-2xl">Transaksi Berhasil!</CardTitle>
             <CardDescription>
-              Invoice {detailTransaksiSukses?.kode_invoice} telah dibuat.
+              {/* BENERIN: Gunakan nama kolom asli 'invoice_code' */}
+              Invoice {detailTransaksiSukses?.invoice_code} telah dibuat.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {/* --- BAGIAN INI YANG BERUBAH --- */}
-            <div className="border rounded-lg my-4 bg-muted/30 p-2">
-              <div className="max-h-64 overflow-y-auto">
-                <div className="w-[220px] mx-auto">
-                  {/* Beri penanda (ref) ke komponen Struk */}
-                  <Struk ref={strukRef} transaksi={detailTransaksiSukses} />
+            {/* Tampilkan Struk HANYA JIKA data siap */}
+            {detailTransaksiSukses && (
+              <div className="border rounded-lg my-4 bg-muted/30 p-2">
+                <div className="max-h-64 overflow-y-auto">
+                  <div className="w-[220px] mx-auto">
+                    <Struk
+                      ref={strukRef}
+                      transaksi={detailTransaksiSukses}
+                      pengaturan={authState.pengaturan}
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="mt-6 grid grid-cols-2 gap-4">
-              {/* Kirim penanda (ref) ke tombol Print */}
-              <PrintStrukButton
-                componentRef={strukRef}
-                disabled={!detailTransaksiSukses}
-              />
-              <Button
-                onClick={handleKirimWA}
-                variant="outline"
-                className="bg-green-500 text-white hover:bg-green-600"
-              >
-                Kirim WhatsApp
-              </Button>
-            </div>
-            {/* --- AKHIR DARI BAGIAN YANG BERUBAH --- */}
+            )}
+
+            {/* Tampilkan tombol HANYA JIKA data siap */}
+            {detailTransaksiSukses && (
+              <div className="mt-6 grid grid-cols-2 gap-4">
+                <PrintStrukButton
+                  componentRef={strukRef}
+                  disabled={!isStrukReady}
+                />
+                <Button
+                  onClick={handleKirimWA}
+                  variant="outline"
+                  className="bg-green-500 text-white hover:bg-green-600"
+                >
+                  Kirim WhatsApp
+                </Button>
+              </div>
+            )}
+
+            {/* Tombol ini selalu tampil */}
             <Button
               onClick={resetForm}
               variant="default"
@@ -466,15 +519,18 @@ function KasirPage() {
         </Card>
       )}
 
+      {/* --- MODAL TUKAR POIN --- */}
       {selectedPelanggan && (
         <Dialog open={isPoinModalOpen} onOpenChange={setIsPoinModalOpen}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Tukar Poin: {selectedPelanggan.nama}</DialogTitle>
+              {/* BENERIN: Gunakan nama kolom asli 'name' */}
+              <DialogTitle>Tukar Poin: {selectedPelanggan.name}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handlePoinSubmit} className="space-y-4 py-4">
               <p className="text-muted-foreground">
-                Poin tersedia: {selectedPelanggan.poin}
+                {/* BENERIN: Gunakan nama kolom asli 'points' */}
+                Poin tersedia: {selectedPelanggan.points}
               </p>
               {formError && (
                 <p className="text-destructive text-sm">{formError}</p>
@@ -504,12 +560,15 @@ function KasirPage() {
           </DialogContent>
         </Dialog>
       )}
+
+      {/* --- MODAL UPDATE ALAMAT --- */}
       <Dialog open={isAlamatModalOpen} onOpenChange={setIsAlamatModalOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Update Alamat Pelanggan</DialogTitle>
             <DialogDescription>
-              Ubah alamat untuk {selectedPelanggan?.nama}. Perubahan ini akan
+              {/* BENERIN: Gunakan nama kolom asli 'name' */}
+              Ubah alamat untuk {selectedPelanggan?.name}. Perubahan ini akan
               tersimpan permanen.
             </DialogDescription>
           </DialogHeader>

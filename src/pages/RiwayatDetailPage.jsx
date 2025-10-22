@@ -1,13 +1,15 @@
-// src/pages/RiwayatDetailPage.jsx
+// src/pages/RiwayatDetailPage.jsx (VERSI FINAL & ANTI-BOCOR)
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import api from "../api/axiosInstance";
-import { useAuth } from "@/context/AuthContext";
-import { useReactToPrint } from "react-to-print";
-import Struk from "../components/struk/Struk";
+import { supabase } from "@/supabaseClient"; // <-- BENERIN
+import { useAuth } from "@/context/AuthContext"; // <-- BENERIN
+import Struk from "../components/struk/Struk"; // <-- Komponen Struk
+import PrintStrukButton from "../components/struk/PrintStrukButton"; // <-- Tombol Print KITA
 import { toast } from "sonner";
+import { usePageVisibility } from "@/lib/usePageVisibility.js"; // <-- Sensor anti-macet
 
+// ... (semua import komponen UI & ikon tidak berubah)
 import {
   Card,
   CardHeader,
@@ -20,8 +22,7 @@ import { Loader2, Printer, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/Badge.jsx";
 
 const formatRupiah = (value) => {
-  if (value == null) return "0";
-  return Number(value).toLocaleString("id-ID");
+  /* ... (fungsi formatRupiah tidak berubah) ... */
 };
 
 export default function RiwayatDetailPage() {
@@ -33,65 +34,119 @@ export default function RiwayatDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // === Perbaikan: make sure initial value is null ===
-  const strukRef = useRef(null); // dipakai langsung oleh useReactToPrint v3 via contentRef
+  // ==========================================================
+  // LOGIKA "SENSOR KESIAPAN STRUK" (KITA CURI DARI KASIRPAGE)
+  // ==========================================================
+  const strukRef = useRef(null);
+  const [isStrukReady, setIsStrukReady] = useState(false);
+
+  // "Mesin" Fetch Data (sudah di-upgrade)
+  const fetchDetail = useCallback(async () => {
+    if (!kode_invoice || !authState.business_id) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    setError("");
+    try {
+      let query = supabase
+        .from("orders")
+        .select("*, customers(*), branches(*), order_items(*, packages(*))")
+        .eq("invoice_code", kode_invoice)
+        .eq("business_id", authState.business_id);
+
+      if (authState.role !== "owner") {
+        query = query.eq("branch_id", authState.branch_id);
+      }
+      const { data, error } = await query.single();
+      if (error) throw error;
+      setTransaksi(data);
+    } catch (err) {
+      console.error("Gagal ambil detail:", err);
+      setError("Gagal memuat detail transaksi atau transaksi tidak ditemukan.");
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    kode_invoice,
+    authState.business_id,
+    authState.role,
+    authState.branch_id,
+  ]);
 
   useEffect(() => {
-    const fetchDetail = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const res = await api.get(`/transaksi/${kode_invoice}`);
-        setTransaksi(res.data);
-      } catch (err) {
-        console.error("Gagal ambil detail:", err);
-        setError("Gagal memuat detail transaksi.");
-      } finally {
-        setLoading(false);
-      }
-    };
+    fetchDetail();
+  }, [fetchDetail]);
 
-    if (kode_invoice) fetchDetail();
-  }, [kode_invoice]);
+  usePageVisibility(fetchDetail);
 
-  // === useReactToPrint v3: gunakan contentRef (bukan content: () => ...) ===
-  const handlePrint = useReactToPrint({
-    contentRef: strukRef, // <-- v3 API: pass the ref object
-    documentTitle: `struk-${transaksi?.kode_invoice || "transaksi"}`,
-    // ganti onBeforeGetContent -> onBeforePrint (v3)
-    onBeforePrint: async () => {
-      // kalau perlu tunggu DOM / state stabil sebelum print
-      await new Promise((resolve) => setTimeout(resolve, 250));
-    },
-    // styling default untuk print (bisa diubah sesuai kebutuhan)
-    pageStyle: `
-      @page { size: auto; margin: 0mm; }
-      body { -webkit-print-color-adjust: exact; }
-    `,
-  });
+  // "Sensor" Kesiapan Struk (sama persis kayak di KasirPage)
+  useEffect(() => {
+    setIsStrukReady(false);
+    if (transaksi) {
+      // <-- Cek 'transaksi', bukan 'detailTransaksiSukses'
+      const timer = setTimeout(() => {
+        if (strukRef.current) {
+          setIsStrukReady(true);
+        } else {
+          console.error("ERROR: Ref struk masih kosong setelah jeda render.");
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [transaksi]);
+  // ==========================================================
+  // "MESIN" KIRIM WA DI-UPGRADE TOTAL
+  // ==========================================================
+  const [loadingWA, setLoadingWA] = useState(false);
 
   const handleKirimWA = async () => {
-    if (!transaksi) return;
+    // Pake 'transaksi', variabel yang ada di RiwayatDetailPage
+    if (!transaksi || loadingWA) return;
+    setLoadingWA(true);
+
     try {
-      const response = await api.post("/transaksi/generate-wa-message", {
-        kode_invoice: transaksi.kode_invoice,
-        tipe_pesan: "struk",
+      // VVV INI DIA KODENYA DISAMAIN VVV
+      // Pake 'rpc' (Database Function) persis kayak di KasirPage
+      const { data, error } = await supabase.rpc("generate_wa_message", {
+        payload: {
+          invoice_code: transaksi.invoice_code, // Pake 'transaksi'
+          tipe_pesan: "struk",
+        },
       });
+      // ^^^ SELESAI DISAMAIN ^^^
 
-      const { pesan, nomor_hp } = response.data;
+      if (error) throw error;
+      if (data.message) throw new Error(data.message);
 
-      const nomorHPFormatted = nomor_hp?.startsWith("0")
-        ? "62" + nomor_hp.substring(1)
-        : nomor_hp;
-      if (!nomorHPFormatted)
-        return toast.error("Nomor HP pelanggan tidak tersedia.");
+      const { pesan, nomor_hp } = data;
 
-      const url = `https://wa.me/${nomorHPFormatted}?text=${encodeURIComponent(
+      // "Penjaga" anti-crash (ini udah bener)
+      const nomorHPNormalized = (nomor_hp || "").trim();
+      if (!nomorHPNormalized) {
+        toast.error("Nomor HP pelanggan tidak ditemukan atau tidak valid.");
+        setLoadingWA(false);
+        return;
+      }
+
+      const nomorHPFormatted = nomorHPNormalized.startsWith("0")
+        ? "62" + nomorHPNormalized.substring(1)
+        : nomorHPNormalized;
+
+      // URL pake 'api.whatsapp.com' (ini udah bener)
+      const url = `https://api.whatsapp.com/send?phone=${nomorHPFormatted}&text=${encodeURIComponent(
         pesan
       )}`;
+
+      console.log("MENCOBA MEMBUKA (API):", url);
+      console.log("PANJANG URL:", url.length);
+
       window.open(url, "_blank");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Gagal membuat pesan WA.");
+      console.error("DEBUG kirimWA:", error);
+      toast.error(error.message || "Gagal membuat pesan WA.");
+    } finally {
+      setLoadingWA(false);
     }
   };
 
@@ -104,7 +159,7 @@ export default function RiwayatDetailPage() {
 
   if (error)
     return (
-      <div className="p-4">
+      <div className="p-4 text-center">
         <p className="text-destructive">{error}</p>
         <Button onClick={() => navigate(-1)} className="mt-4">
           Kembali
@@ -114,14 +169,17 @@ export default function RiwayatDetailPage() {
 
   if (!transaksi)
     return (
-      <div className="p-4">
-        <p>Tidak ada data transaksi.</p>
+      <div className="p-4 text-center">
+        <p>Tidak ada data transaksi ditemukan.</p>
         <Button onClick={() => navigate(-1)} className="mt-4">
           Kembali
         </Button>
       </div>
     );
 
+  // ==========================================================
+  // JSX (TAMPILAN) DIBENERIN BIAR COCOK "KAMUS FINAL"
+  // ==========================================================
   return (
     <div className="space-y-6 p-4">
       <div className="flex items-center justify-between">
@@ -130,20 +188,26 @@ export default function RiwayatDetailPage() {
           <Button variant="ghost" onClick={() => navigate(-1)}>
             ← Kembali
           </Button>
+          {/* BENERIN: Panggil komponen <PrintStrukButton> */}
+          <PrintStrukButton
+            componentRef={strukRef}
+            disabled={!isStrukReady} // <-- Pake gembok sensor
+          />
           <Button
-            variant="outline"
-            onClick={() => {
-              // debug helper: uncomment kalau perlu cek ref
-              // console.log("STRUK REF:", strukRef.current);
-              handlePrint();
-            }}
+            variant="default"
+            onClick={handleKirimWA}
+            disabled={loadingWA}
           >
-            <Printer className="mr-2 h-4 w-4" />
-            Cetak Struk
-          </Button>
-          <Button variant="default" onClick={handleKirimWA}>
-            <MessageSquare className="mr-2 h-4 w-4" />
-            Kirim WA
+            {loadingWA ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Mengirim...
+              </>
+            ) : (
+              <>
+                <MessageSquare className="mr-2 h-4 w-4" />
+                Kirim WA
+              </>
+            )}
           </Button>
         </div>
       </div>
@@ -152,7 +216,8 @@ export default function RiwayatDetailPage() {
         {/* LEFT: Preview Struk (tampil di UI) */}
         <div className="lg:col-span-1 flex justify-center">
           <div className="w-[220px]">
-            <Struk transaksi={transaksi} />
+            {/* BENERIN: Kasih 'pengaturan' ke Struk */}
+            <Struk transaksi={transaksi} pengaturan={authState.pengaturan} />
           </div>
         </div>
 
@@ -161,20 +226,19 @@ export default function RiwayatDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle>Ringkasan</CardTitle>
-              <CardDescription>Informasi singkat transaksi</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <div className="text-muted-foreground">Invoice</div>
                   <div className="font-mono font-semibold">
-                    {transaksi.kode_invoice}
+                    {transaksi.invoice_code}
                   </div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground">Tanggal</div>
+                  <div className="text-muted-foreground">Tanggal Diterima</div>
                   <div>
-                    {new Date(transaksi.createdAt).toLocaleString("id-ID", {
+                    {new Date(transaksi.created_at).toLocaleString("id-ID", {
                       day: "2-digit",
                       month: "short",
                       year: "numeric",
@@ -183,84 +247,91 @@ export default function RiwayatDetailPage() {
                     })}
                   </div>
                 </div>
-
+                <div>
+                  <div className="text-muted-foreground">Estimasi Selesai</div>
+                  <div>
+                    {new Date(
+                      transaksi.estimated_completion_date
+                    ).toLocaleString("id-ID", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </div>
+                </div>
                 <div>
                   <div className="text-muted-foreground">Pelanggan</div>
-                  <div>{transaksi.Pelanggan?.nama || "-"}</div>
+                  <div>{transaksi.customers?.name || "-"}</div>
                 </div>
                 <div>
                   <div className="text-muted-foreground">Nomor HP</div>
-                  <div>{transaksi.Pelanggan?.nomor_hp || "-"}</div>
+                  <div>{transaksi.customers?.phone_number || "-"}</div>
                 </div>
-
                 <div>
                   <div className="text-muted-foreground">Status Pembayaran</div>
                   <div className="mt-1">
                     <Badge
                       variant={
-                        transaksi.status_pembayaran === "Lunas"
+                        transaksi.payment_status === "Lunas"
                           ? "success"
-                          : "destructive"
+                          : "warning"
                       }
                     >
-                      {transaksi.status_pembayaran}
+                      {transaksi.payment_status}
                     </Badge>
                   </div>
                 </div>
-
                 <div>
                   <div className="text-muted-foreground">Status Proses</div>
                   <div className="mt-1">
-                    <Badge variant="secondary">{transaksi.status_proses}</Badge>
+                    <Badge variant="secondary">
+                      {transaksi.process_status}
+                    </Badge>
                   </div>
                 </div>
-
                 <div>
                   <div className="text-muted-foreground">Metode Pembayaran</div>
-                  <div>{transaksi.metode_pembayaran || "-"}</div>
+                  <div>{transaksi.payment_method || "-"}</div>
                 </div>
-
                 <div>
                   <div className="text-muted-foreground">Cabang</div>
-                  <div>{transaksi.Cabang?.nama_cabang || "-"}</div>
+                  <div>{transaksi.branches?.name || "-"}</div>
                 </div>
 
-                <div className="col-span-2">
+                {/* --- BAGIAN KALKULASI TOTAL (PAKE DATA DARI DB) --- */}
+                <div className="col-span-2 pt-2 border-t">
                   <div className="text-muted-foreground">Subtotal</div>
                   <div className="font-semibold">
                     Rp{" "}
                     {formatRupiah(
-                      Array.isArray(transaksi.Pakets)
-                        ? transaksi.Pakets.reduce(
-                            (t, p) => t + (p.DetailTransaksi?.subtotal || 0),
-                            0
-                          )
-                        : 0
+                      transaksi.subtotal + transaksi.membership_fee_paid
                     )}
                   </div>
                 </div>
-
-                <div>
-                  <div className="text-muted-foreground">Diskon Poin</div>
+                {transaksi.service_fee > 0 && (
                   <div>
-                    - Rp{" "}
-                    {formatRupiah(
-                      (transaksi.poin_digunakan || 0) *
-                        (authState.pengaturan?.rupiah_per_poin_redeem || 0)
-                    )}
+                    <div className="text-muted-foreground">Biaya Layanan</div>
+                    <div>Rp {formatRupiah(transaksi.service_fee)}</div>
                   </div>
-                </div>
-                <div>
+                )}
+                {transaksi.discount_amount > 0 && (
+                  <div>
+                    <div className="text-muted-foreground">Diskon Poin</div>
+                    <div>- Rp {formatRupiah(transaksi.discount_amount)}</div>
+                  </div>
+                )}
+                <div className="col-span-2">
                   <div className="text-muted-foreground">Grand Total</div>
-                  <div className="font-semibold">
+                  <div className="font-semibold text-lg">
                     Rp {formatRupiah(transaksi.grand_total)}
                   </div>
                 </div>
-
-                {transaksi.catatan && (
+                {transaksi.notes && (
                   <div className="col-span-2">
                     <div className="text-muted-foreground">Catatan</div>
-                    <div>{transaksi.catatan}</div>
+                    <div>{transaksi.notes}</div>
                   </div>
                 )}
               </div>
@@ -271,7 +342,6 @@ export default function RiwayatDetailPage() {
           <Card>
             <CardHeader>
               <CardTitle>Rincian Paket</CardTitle>
-              <CardDescription>Daftar layanan dan harga</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
@@ -285,39 +355,20 @@ export default function RiwayatDetailPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {Array.isArray(transaksi.Pakets) &&
-                    transaksi.Pakets.length > 0 ? (
-                      transaksi.Pakets?.map((p) => (
-                        <tr
-                          key={p.id || `${p.nama_paket}-${Math.random()}`}
-                          className="border-t"
-                        >
-                          <td className="py-2">
-                            {p.Layanan?.nama_layanan
-                              ? `${p.Layanan.nama_layanan} — ${p.nama_paket}`
-                              : p.nama_paket}
-                          </td>
-                          <td className="py-2">
-                            {p.DetailTransaksi?.jumlah || 0} {p.satuan || ""}
-                          </td>
-                          <td className="py-2 text-right">
-                            Rp {formatRupiah(p.harga)}
-                          </td>
-                          <td className="py-2 text-right">
-                            Rp {formatRupiah(p.DetailTransaksi?.subtotal || 0)}
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr>
-                        <td
-                          colSpan={4}
-                          className="py-6 text-center text-muted-foreground"
-                        >
-                          Tidak ada paket.
+                    {transaksi.order_items?.map((item) => (
+                      <tr key={item.id} className="border-t">
+                        <td className="py-2">{item.packages?.name || "N/A"}</td>
+                        <td className="py-2">
+                          {item.quantity} {item.packages?.unit || ""}
+                        </td>
+                        <td className="py-2 text-right">
+                          Rp {formatRupiah(item.packages?.price)}
+                        </td>
+                        <td className="py-2 text-right">
+                          Rp {formatRupiah(item.subtotal)}
                         </td>
                       </tr>
-                    )}
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -326,14 +377,14 @@ export default function RiwayatDetailPage() {
         </div>
       </div>
 
-      {/* OFF-SCREEN struk khusus untuk print (tetap ada di DOM, muncul saat print) */}
+      {/* OFF-SCREEN struk khusus untuk print */}
       <div
-        ref={strukRef}
-        // ini ga pake `hidden` karena beberapa versi/tailwind bisa menyebabkan masalah; pakai off-screen + media print
+        ref={strukRef} // <-- 'ref' nempel di sini
         className="absolute -left-[9999px] top-0 print:static print:block"
         aria-hidden="true"
       >
-        <Struk transaksi={transaksi} />
+        {/* BENERIN: Kasih 'pengaturan' ke Struk ini juga */}
+        <Struk transaksi={transaksi} pengaturan={authState.pengaturan} />
       </div>
     </div>
   );

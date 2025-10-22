@@ -1,14 +1,14 @@
-// src/pages/UserManagementPage.jsx
+// src/pages/UserManagementPage.jsx (VERSI JALAN TIKUS)
 
-import React, { useState, useEffect } from "react";
-import api from "@/api/axiosInstance";
+import React, { useState, useEffect, useCallback } from "react";
+import { supabase } from "@/supabaseClient";
 import { useAuth } from "@/context/AuthContext";
-import { MoreHorizontal, PlusCircle } from "lucide-react";
-
-// Impor semua komponen baru dari shadcn/ui
+import { toast } from "sonner";
+import { MoreHorizontal, PlusCircle, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button.jsx";
 import { Input } from "@/components/ui/Input.jsx";
 import { Label } from "@/components/ui/Label.jsx";
+
 import {
   Table,
   TableHeader,
@@ -56,92 +56,125 @@ function UserManagementPage() {
   const [users, setUsers] = useState([]);
   const [cabangs, setCabangs] = useState([]);
   const [formData, setFormData] = useState({
-    nama_lengkap: "",
-    username: "",
+    full_name: "",
+    email: "",
     password: "",
     role: "kasir",
-    id_cabang: "",
+    branch_id: "",
   });
-
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState(""); // Untuk notifikasi sukses
-
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
-
   const [searchTerm, setSearchTerm] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const userPromise = api.get("/pengguna");
+      let userQuery = supabase.from("profiles").select("*, branches(name)");
+      if (authState.role === "admin") {
+        userQuery = userQuery
+          .eq("role", "kasir")
+          .eq("branch_id", authState.branch_id);
+      } else if (authState.role === "owner") {
+        userQuery = userQuery.not("id", "eq", authState.user.id);
+      }
+      if (searchTerm) {
+        userQuery = userQuery.or(
+          `full_name.ilike.%${searchTerm}%,email.ilike.%${searchTerm}%`
+        );
+      }
+      const userPromise = userQuery.order("created_at");
       const cabangPromise =
-        authState.user.role === "owner"
-          ? api.get("/cabang")
+        authState.role === "owner"
+          ? supabase.from("branches").select("*")
           : Promise.resolve({ data: [] });
       const [userResponse, cabangResponse] = await Promise.all([
         userPromise,
         cabangPromise,
       ]);
+      if (userResponse.error) throw userResponse.error;
+      if (cabangResponse.error) throw cabangResponse.error;
       setUsers(userResponse.data);
       setCabangs(cabangResponse.data);
     } catch (err) {
-      setError("Gagal mengambil data dari server.");
+      toast.error("Gagal mengambil data: " + err.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [authState.role, authState.user?.id, authState.branch_id, searchTerm]);
 
   useEffect(() => {
-    if (authState.user) fetchData();
-  }, [authState.user]);
+    const timer = setTimeout(() => {
+      if (authState.role) fetchData();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [authState.role, fetchData]);
 
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
-    setError("");
+
+    if (!authState.business_id) {
+      return toast.error(
+        "Error: ID Bisnis tidak ditemukan. Coba logout dan login kembali."
+      );
+    }
+
+    if (authState.role === "owner" && !formData.branch_id) {
+      return toast.error("Owner harus memilih cabang untuk staff baru.");
+    }
+
+    setIsSubmitting(true); // Pelayan mulai sibuk
+
     try {
-      const response = await api.post("/pengguna/register", formData);
-      setMessage(response.data.message);
-      fetchData();
+      const { data, error } = await supabase.functions.invoke("create-staff", {
+        body: {
+          email: formData.email,
+          password: formData.password,
+          full_name: formData.full_name,
+          role: formData.role,
+          branch_id:
+            authState.role === "admin"
+              ? authState.branch_id
+              : parseInt(formData.branch_id),
+          business_id: authState.business_id,
+        },
+      });
+
+      if (error) throw error;
+      if (data.error) throw new Error(data.error);
+
+      toast.success(data.message || "Staff baru berhasil dibuat!");
+      fetchData(); // Setelah sukses, panggil fetchData untuk renovasi (memuat ulang) tabel
       setIsCreateModalOpen(false);
     } catch (err) {
-      setError(err.response?.data?.message || "Gagal membuat user.");
-    }
-  };
-
-  const handleUpdateSubmit = async (e) => {
-    e.preventDefault();
-    setError("");
-    try {
-      const response = await api.put(
-        `/pengguna/${editingUser.id}`,
-        editingUser
-      );
-      setMessage(response.data.message);
-      fetchData();
-      setIsEditModalOpen(false);
-    } catch (err) {
-      setError(err.response?.data?.message || "Gagal mengupdate user.");
+      toast.error("Gagal membuat staff: " + err.message);
+    } finally {
+      setIsSubmitting(false); // Apapun hasilnya, pelayan berhenti sibuk
     }
   };
 
   const handleDelete = async (userId) => {
+    // Kita akan gunakan RPC yang sudah ada, tapi harus dibuat ulang jika tadi terhapus
     try {
-      const response = await api.delete(`/pengguna/${userId}`);
-      setMessage(response.data.message);
+      const { error } = await supabase.rpc("delete_staff_user", {
+        user_id_to_delete: userId,
+      });
+      if (error) throw error;
+      toast.success("Staff berhasil dihapus.");
       fetchData();
     } catch (err) {
-      setError(err.response?.data?.message || "Gagal menghapus user.");
+      toast.error("Gagal menghapus staff: " + err.message);
     }
   };
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.nama_lengkap.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  if (authState.role !== "owner" && authState.role !== "admin") {
+    return (
+      <div className="text-center">
+        <h1 className="text-2xl font-bold">Akses Ditolak</h1>
+        <p>Hanya Owner & Admin yang dapat mengakses halaman ini.</p>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -150,52 +183,51 @@ function UserManagementPage() {
         <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
           <DialogTrigger asChild>
             <Button
-              onClick={() => {
-                setError("");
+              onClick={() =>
                 setFormData({
-                  nama_lengkap: "",
-                  username: "",
+                  full_name: "",
+                  email: "",
                   password: "",
                   role: "kasir",
-                  id_cabang: "",
-                });
-              }}
+                  branch_id: "",
+                })
+              }
             >
-              <PlusCircle className="mr-2 h-4 w-4" /> Tambah User
+              <PlusCircle className="mr-2 h-4 w-4" /> Tambah Staff
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Tambah User Baru</DialogTitle>
+              <DialogTitle>Tambah Staff Baru</DialogTitle>
               <DialogDescription>
-                Isi detail di bawah ini untuk membuat user baru.
+                Isi detail di bawah untuk mendaftarkan staff baru.
               </DialogDescription>
             </DialogHeader>
             <form onSubmit={handleCreateSubmit} className="grid gap-4 py-4">
-              {error && <p className="text-red-500 text-sm">{error}</p>}
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="nama_lengkap" className="text-right">
+                <Label htmlFor="full_name" className="text-right">
                   Nama Lengkap
                 </Label>
                 <Input
-                  id="nama_lengkap"
-                  value={formData.nama_lengkap}
+                  id="full_name"
+                  value={formData.full_name}
                   onChange={(e) =>
-                    setFormData({ ...formData, nama_lengkap: e.target.value })
+                    setFormData({ ...formData, full_name: e.target.value })
                   }
                   className="col-span-3"
                   required
                 />
               </div>
               <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="username" className="text-right">
-                  Username
+                <Label htmlFor="email" className="text-right">
+                  Email
                 </Label>
                 <Input
-                  id="username"
-                  value={formData.username}
+                  id="email"
+                  type="email"
+                  value={formData.email}
                   onChange={(e) =>
-                    setFormData({ ...formData, username: e.target.value })
+                    setFormData({ ...formData, email: e.target.value })
                   }
                   className="col-span-3"
                   required
@@ -230,62 +262,68 @@ function UserManagementPage() {
                     <SelectValue placeholder="Pilih role" />
                   </SelectTrigger>
                   <SelectContent>
-                    {authState.user?.role === "owner" && (
+                    {authState.role === "owner" && (
                       <SelectItem value="admin">Admin</SelectItem>
                     )}
                     <SelectItem value="kasir">Kasir</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              {authState.user?.role === "owner" &&
-                formData.role === "admin" && (
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="id_cabang" className="text-right">
-                      Cabang
-                    </Label>
-                    <Select
-                      onValueChange={(value) =>
-                        setFormData({ ...formData, id_cabang: value })
-                      }
-                      defaultValue={formData.id_cabang}
-                    >
-                      <SelectTrigger className="col-span-3">
-                        <SelectValue placeholder="Pilih cabang" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {cabangs?.map((cabang) => (
-                          <SelectItem key={cabang.id} value={String(cabang.id)}>
-                            {cabang.nama_cabang}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+              {authState.role === "owner" && (
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="branch_id" className="text-right">
+                    Cabang
+                  </Label>
+                  <Select
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, branch_id: value })
+                    }
+                    required
+                  >
+                    <SelectTrigger className="col-span-3">
+                      <SelectValue placeholder="Pilih cabang" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {cabangs?.map((cabang) => (
+                        <SelectItem key={cabang.id} value={String(cabang.id)}>
+                          {cabang.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <DialogFooter>
-                <Button type="submit">Simpan</Button>
+                <Button type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Menyimpan...
+                    </>
+                  ) : (
+                    "Simpan Staff"
+                  )}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
         </Dialog>
       </div>
-
       <div className="mb-4">
         <Input
           type="text"
-          placeholder="Cari user berdasarkan nama atau username..."
+          placeholder="Cari staff berdasarkan nama atau email..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
       </div>
-
       <div className="rounded-md border">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Nama Lengkap</TableHead>
-                <TableHead>Username</TableHead>
+                <TableHead>Email</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Cabang</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
@@ -294,40 +332,27 @@ function UserManagementPage() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center">
-                    Loading...
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    Memuat data staff...
                   </TableCell>
                 </TableRow>
-              ) : filteredUsers.length > 0 ? (
-                filteredUsers?.map((user) => (
+              ) : users.length > 0 ? (
+                users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">
-                      {user.nama_lengkap}
+                      {user.full_name}
                     </TableCell>
-                    <TableCell>{user.username}</TableCell>
+                    <TableCell>{user.email}</TableCell>
                     <TableCell className="capitalize">{user.role}</TableCell>
-                    <TableCell>
-                      {cabangs.find((c) => c.id === user.id_cabang)
-                        ?.nama_cabang ||
-                        (user.role === "owner" ? "Global" : "N/A")}
-                    </TableCell>
+                    <TableCell>{user.branches?.name || "N/A"}</TableCell>
                     <TableCell className="text-right">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" className="h-8 w-8 p-0">
-                            <span className="sr-only">Buka menu</span>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem
-                            onClick={() => {
-                              setEditingUser(user);
-                              setIsEditModalOpen(true);
-                            }}
-                          >
-                            Edit
-                          </DropdownMenuItem>
                           <AlertDialog>
                             <AlertDialogTrigger asChild>
                               <DropdownMenuItem
@@ -341,9 +366,8 @@ function UserManagementPage() {
                               <AlertDialogHeader>
                                 <AlertDialogTitle>Anda Yakin?</AlertDialogTitle>
                                 <AlertDialogDescription>
-                                  Aksi ini akan menonaktifkan user '
-                                  {user.username}'. Anda bisa mengaktifkannya
-                                  kembali nanti.
+                                  Aksi ini akan menghapus user '{user.full_name}
+                                  ' secara permanen.
                                 </AlertDialogDescription>
                               </AlertDialogHeader>
                               <AlertDialogFooter>
@@ -363,8 +387,8 @@ function UserManagementPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center">
-                    Tidak ada data.
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    Belum ada staff yang ditambahkan.
                   </TableCell>
                 </TableRow>
               )}
@@ -372,61 +396,6 @@ function UserManagementPage() {
           </Table>
         </div>
       </div>
-
-      {/* Modal Edit (mirip dengan modal create) */}
-      {editingUser && (
-        <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-          <DialogContent className="sm:max-w-[425px]">
-            <DialogHeader>
-              <DialogTitle>Edit User: {editingUser.username}</DialogTitle>
-            </DialogHeader>
-            <form onSubmit={handleUpdateSubmit} className="grid gap-4 py-4">
-              {/* ... form fields untuk edit, mirip dengan form create ... */}
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-nama_lengkap" className="text-right">
-                  Nama Lengkap
-                </Label>
-                <Input
-                  id="edit-nama_lengkap"
-                  value={editingUser.nama_lengkap || ""}
-                  onChange={(e) =>
-                    setEditingUser({
-                      ...editingUser,
-                      nama_lengkap: e.target.value,
-                    })
-                  }
-                  className="col-span-3"
-                />
-              </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="edit-role" className="text-right">
-                  Role
-                </Label>
-                <Select
-                  onValueChange={(value) =>
-                    setEditingUser({ ...editingUser, role: value })
-                  }
-                  defaultValue={editingUser.role}
-                >
-                  <SelectTrigger className="col-span-3">
-                    <SelectValue placeholder="Pilih role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {authState.user?.role === "owner" && (
-                      <SelectItem value="admin">Admin</SelectItem>
-                    )}
-                    <SelectItem value="kasir">Kasir</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {/* ... tambahkan field lain jika perlu diedit ... */}
-              <DialogFooter>
-                <Button type="submit">Simpan Perubahan</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      )}
     </div>
   );
 }

@@ -50,7 +50,7 @@ export const menuConfig = [
     to: "/pesanan",
     label: "Manajemen Pesanan",
     icon: <ClipboardList size={18} />,
-    roles: ["owner", "admin", "kasir"],
+    roles: ["owner", "admin"],
   },
   {
     to: "/pelanggan",

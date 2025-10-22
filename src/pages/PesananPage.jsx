@@ -1,11 +1,14 @@
-// src/pages/PesananPage.jsx
+// src/pages/PesananPage.jsx (VERSI FINAL & ANTI-BOCOR)
 
-import React, { useState, useEffect } from "react";
-import api from "../api/axiosInstance";
-import { useAuth } from "../context/AuthContext";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/supabaseClient";
+import { useAuth } from "../context/AuthContext";
+import { toast } from "sonner";
+import { usePageVisibility } from "@/lib/usePageVisibility.js";
 
-// Impor komponen-komponen dari shadcn/ui
+// Impor komponen
+import { Button } from "@/components/ui/Button.jsx";
 import {
   Card,
   CardContent,
@@ -30,7 +33,9 @@ import {
   TableCell,
 } from "@/components/ui/Table.jsx";
 import { Badge } from "@/components/ui/Badge.jsx";
-import { Button } from "@/components/ui/Button.jsx";
+import { Loader2 } from "lucide-react";
+import EmptyState from "@/components/ui/EmptyState.jsx";
+import { ClipboardList } from "lucide-react";
 
 function PesananPage() {
   const { authState } = useAuth();
@@ -42,47 +47,62 @@ function PesananPage() {
     search: "",
     startDate: "",
     endDate: "",
-    status_proses: "",
-    id_cabang_filter: "",
+    process_status: "", // Nama kolom asli
+    branch_id: "", // Nama kolom asli
   });
   const [cabangs, setCabangs] = useState([]);
 
-  // Ambil data cabang untuk owner (tidak berubah)
+  // Ambil data cabang (sudah pake Supabase)
   useEffect(() => {
-    if (authState.user?.role === "owner") {
-      api.get("/cabang").then((res) => setCabangs(res.data));
+    if (authState.role === "owner" && authState.business_id) {
+      const fetchCabangsForOwner = async () => {
+        const { data, error } = await supabase
+          .from("branches")
+          .select("id, name")
+          .eq("business_id", authState.business_id);
+        if (error) toast.error("Gagal memuat daftar cabang.");
+        else setCabangs(data || []);
+      };
+      fetchCabangsForOwner();
     }
-  }, [authState.user?.role]);
+  }, [authState.role, authState.business_id]);
 
-  // [FIX] useEffect utama sekarang yang bertanggung jawab penuh
+  // "Mesin" Fetch Data (manggil "Koki" RPC)
+  const fetchPesanan = useCallback(async () => {
+    if (!authState.business_id) return;
+
+    setLoading(true);
+    setError("");
+    try {
+      const { data, error } = await supabase.rpc("get_all_orders", {
+        p_business_id: authState.business_id,
+        p_role: authState.role,
+        p_branch_id: authState.branch_id,
+        p_search_term: filters.search,
+        p_start_date: filters.startDate || "",
+        p_end_date: filters.endDate || "",
+        p_process_status: filters.process_status,
+        p_branch_filter: filters.branch_id ? parseInt(filters.branch_id) : null,
+      });
+
+      if (error) throw error;
+      setTransaksis(data || []);
+    } catch (err) {
+      setError("Gagal mengambil data pesanan. " + err.message);
+      setTransaksis([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, authState.business_id, authState.role, authState.branch_id]);
+
   useEffect(() => {
-    // Fungsi fetchPesanan didefinisikan di dalam useEffect
-    const fetchPesanan = async () => {
-      setLoading(true);
-      setError(""); // Reset error setiap kali fetch baru
-      try {
-        const activeFilters = Object.fromEntries(
-          Object.entries(filters).filter(([_, value]) => value !== "")
-        );
-
-        // Kirim 'params' langsung ke Axios, lebih bersih
-        const response = await api.get("/transaksi", { params: activeFilters });
-        setTransaksis(response.data);
-      } catch (err) {
-        setError("Gagal mengambil data pesanan.");
-        setTransaksis([]); // Kosongkan data jika error
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    // Debounce tetap di sini
     const timer = setTimeout(() => {
       fetchPesanan();
-    }, 500); // Debounce 500ms
-
+    }, 500);
     return () => clearTimeout(timer);
-  }, [filters]); // <-- Hanya bergantung pada state 'filters'
+  }, [fetchPesanan]);
+
+  usePageVisibility(fetchPesanan); // Pasang sensor anti-macet
 
   const handleFilterChange = (e) => {
     setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -99,9 +119,6 @@ function PesananPage() {
       <Card className="mb-6">
         <CardHeader>
           <CardTitle>Filter Pencarian</CardTitle>
-          <CardDescription>
-            Gunakan filter di bawah untuk mencari pesanan spesifik.
-          </CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <Input
@@ -123,9 +140,9 @@ function PesananPage() {
             onChange={handleFilterChange}
           />
           <Select
-            value={filters.status_proses || "all"}
+            value={filters.process_status || "all"}
             onValueChange={(value) =>
-              handleSelectFilterChange("status_proses", value)
+              handleSelectFilterChange("process_status", value)
             }
           >
             <SelectTrigger>
@@ -136,14 +153,18 @@ function PesananPage() {
               <SelectItem value="Diterima">Diterima</SelectItem>
               <SelectItem value="Proses Cuci">Proses Cuci</SelectItem>
               <SelectItem value="Siap Diambil">Siap Diambil</SelectItem>
+              <SelectItem value="Proses Pengantaran">
+                Proses Pengantaran
+              </SelectItem>
               <SelectItem value="Selesai">Selesai</SelectItem>
+              <SelectItem value="Dibatalkan">Dibatalkan</SelectItem>
             </SelectContent>
           </Select>
-          {authState.user?.role === "owner" && (
+          {authState.role === "owner" && (
             <Select
-              value={filters.id_cabang_filter || "all"}
+              value={filters.branch_id || "all"}
               onValueChange={(value) =>
-                handleSelectFilterChange("id_cabang_filter", value)
+                handleSelectFilterChange("branch_id", value)
               }
             >
               <SelectTrigger>
@@ -153,7 +174,7 @@ function PesananPage() {
                 <SelectItem value="all">Semua Cabang</SelectItem>
                 {cabangs?.map((c) => (
                   <SelectItem key={c.id} value={String(c.id)}>
-                    {c.nama_cabang}
+                    {c.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -169,9 +190,7 @@ function PesananPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Invoice</TableHead>
-                  {authState.user?.role === "owner" && (
-                    <TableHead>Cabang</TableHead>
-                  )}
+                  {authState.role === "owner" && <TableHead>Cabang</TableHead>}
                   <TableHead>Pelanggan</TableHead>
                   <TableHead>Tanggal</TableHead>
                   <TableHead className="text-right">Total</TableHead>
@@ -184,7 +203,7 @@ function PesananPage() {
                 {loading ? (
                   <TableRow>
                     <TableCell colSpan={8} className="h-24 text-center">
-                      Memuat data pesanan...
+                      <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                     </TableCell>
                   </TableRow>
                 ) : error ? (
@@ -197,19 +216,19 @@ function PesananPage() {
                     </TableCell>
                   </TableRow>
                 ) : transaksis.length > 0 ? (
-                  transaksis?.map((tx) => (
+                  transaksis.map((tx) => (
                     <TableRow key={tx.id}>
                       <TableCell className="font-mono font-semibold">
-                        {tx.kode_invoice}
+                        {tx.invoice_code}
                       </TableCell>
-                      {authState.user?.role === "owner" && (
-                        <TableCell>{tx.Cabang?.nama_cabang || "N/A"}</TableCell>
+                      {authState.role === "owner" && (
+                        <TableCell>{tx.branches?.name || "N/A"}</TableCell>
                       )}
                       <TableCell className="font-medium text-primary">
-                        {tx.Pelanggan?.nama || "N/A"}
+                        {tx.customers?.name || "N/A"}
                       </TableCell>
                       <TableCell>
-                        {new Date(tx.createdAt).toLocaleDateString("id-ID")}
+                        {new Date(tx.created_at).toLocaleDateString("id-ID")}
                       </TableCell>
                       <TableCell className="text-right">
                         Rp {tx.grand_total.toLocaleString("id-ID")}
@@ -217,23 +236,23 @@ function PesananPage() {
                       <TableCell>
                         <Badge
                           variant={
-                            tx.status_pembayaran === "Lunas"
+                            tx.payment_status === "Lunas"
                               ? "success"
                               : "warning"
                           }
                         >
-                          {tx.status_pembayaran}
+                          {tx.payment_status}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="secondary">{tx.status_proses}</Badge>
+                        <Badge variant="secondary">{tx.process_status}</Badge>
                       </TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() =>
-                            navigate(`/riwayat/${tx.kode_invoice}`)
+                            navigate(`/riwayat/${tx.invoice_code}`)
                           }
                         >
                           Detail
@@ -243,8 +262,12 @@ function PesananPage() {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={8} className="h-24 text-center">
-                      Tidak ada data pesanan yang ditemukan.
+                    <TableCell colSpan={8} className="h-48 text-center">
+                      <EmptyState
+                        icon={<ClipboardList className="h-16 w-16" />}
+                        title="Tidak Ada Pesanan"
+                        description="Tidak ada pesanan yang cocok dengan filter pencarian Anda."
+                      />
                     </TableCell>
                   </TableRow>
                 )}

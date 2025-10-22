@@ -1,9 +1,9 @@
 // src/pages/DashboardPage.jsx
 
-import React, { useState, useEffect } from "react";
-import api from "@/api/axiosInstance";
+import React, { useState, useEffect, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate } from "react-router-dom";
+
 import {
   ResponsiveContainer,
   LineChart,
@@ -13,6 +13,7 @@ import {
   Tooltip,
   CartesianGrid,
 } from "recharts";
+import { supabase } from "@/supabaseClient";
 
 // Impor komponen
 // Impor komponen
@@ -266,31 +267,86 @@ function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const { authState } = useAuth();
 
-  useEffect(() => {
-    const fetchDashboardData = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get("/dashboard");
-        setDashboardData(response.data);
-      } catch (error) {
-        console.error("Gagal mengambil data dashboard:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchDashboardData();
-  }, []);
+  // 1. PINDAHKAN LOGIKA PENGAMBILAN DATA KELUAR DARI useEffect
+  // ...dan bungkus dengan useCallback agar fungsinya stabil.
+  const fetchData = useCallback(async () => {
+    // Cek dulu apakah authState sudah siap dengan semua data yang dibutuhkan
+    if (!authState.isReady || !authState.business_id) {
+      return; // Keluar jika data belum lengkap
+    }
+    if (authState.role !== "owner" && !authState.branch_id) {
+      return; // Keluar jika Admin/Kasir belum punya branch_id
+    }
 
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.rpc("get_dashboard_data", {
+        user_role: authState.role,
+        user_branch_id: authState.branch_id,
+        user_business_id: authState.business_id,
+      });
+
+      if (error) throw error;
+      setDashboardData(data);
+    } catch (error) {
+      console.error("Gagal mengambil data dashboard:", error);
+      // Atur data default jika terjadi error
+      setDashboardData({
+        stats: {
+          revenueToday: 0,
+          transactionsToday: 0,
+          activeOrders: 0,
+          newCustomersThisMonth: 0,
+        },
+        dailyRevenue7Days: [],
+        recentTransactions: [],
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [
+    authState.isReady,
+    authState.role,
+    authState.branch_id,
+    authState.business_id,
+  ]); // <-- Dependency untuk useCallback
+
+  // 2. GUNAKAN SATU useEffect UNTUK MEMANGGIL fetchData saat pertama kali render atau saat authState berubah
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]); // <-- Dependency-nya adalah fungsi fetchData itu sendiri
+
+  const getGreeting = () => {
+    const currentHour = new Date().getHours(); // Dapatkan jam sekarang (0-23)
+
+    if (currentHour >= 5 && currentHour < 11) {
+      // 05:00 - 10:59
+      return "Selamat Pagi";
+    } else if (currentHour >= 11 && currentHour < 15) {
+      // 11:00 - 14:59
+      return "Selamat Siang";
+    } else if (currentHour >= 15 && currentHour < 18) {
+      // 15:00 - 17:59
+      return "Selamat Sore";
+    } else {
+      // 18:00 - 04:59
+      return "Selamat Malam";
+    }
+  };
+  const greeting = getGreeting();
+
+  // Kondisi loading, ini sudah benar
   if (loading || !dashboardData) {
     return <p className="text-center">Memuat dashboard...</p>;
   }
 
+  // Ganti `dashboardData.role` menjadi `authState.role`
   return (
     <div>
       <h1 className="text-3xl font-bold mb-6">
-        Selamat Datang, {authState.user.nama_lengkap}!
+        {greeting}, {authState.full_name}! {/* <-- Pake variabel greeting */}
       </h1>
-      {dashboardData.role === "owner" ? (
+      {authState.role === "owner" ? (
         <OwnerDashboard data={dashboardData} />
       ) : (
         <KasirDashboard data={dashboardData} />

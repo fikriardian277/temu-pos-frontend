@@ -1,45 +1,39 @@
+// src/layouts/RoleBasedLayout.jsx (VERSI SUPER FINAL & BENAR)
+
 import React from "react";
 import { useAuth } from "@/context/AuthContext";
 import AdminLayout from "./AdminLayout";
 import KasirLayout from "./KasirLayout";
-// BENAR
-import { Navigate } from "react-router-dom";
+import { Loader2 } from "lucide-react";
 
 function RoleBasedLayout() {
   const { authState } = useAuth();
 
-  // Logika sekarang jauh lebih sederhana.
-  // AuthContext adalah satu-satunya sumber kebenaran.
-
-  // 1. Jika context masih loading (misal: saat refresh), tampilkan loading.
-  // Pengecekan `token` memastikan kita tidak langsung redirect sebelum context siap.
-  if (!authState.token) {
-    // Jika setelah loading selesai token tetap null, berarti user tidak login.
-    // AuthContext dan loader router akan menangani redirect, tapi ini sebagai fallback.
-    
-    return <Navigate to="/login" replace />;
-  }
-
-  // 2. Jika user belum termuat tapi token ada, tampilkan loading.
-  if (!authState.user) {
+  // Kita cek dulu apakah authState (dompetnya) sudah siap
+  if (!authState.isReady || !authState.role) {
     return (
-      <div className="bg-slate-800 min-h-screen text-white flex justify-center items-center">
-        <p>Memuat data pengguna...</p>
+      <div className="flex justify-center items-center h-screen">
+        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+        <p className="ml-4">Memvalidasi peran pengguna...</p>
       </div>
     );
   }
 
-  // 3. Jika user sudah ada, tampilkan layout yang sesuai.
-  if (authState.user.role === "owner" || authState.user.role === "admin") {
+  // TUGAS UTAMA: Cek role dari 'authState', BUKAN 'authState.user'
+  if (authState.role === "owner" || authState.role === "admin") {
     return <AdminLayout />;
   }
 
-  if (authState.user.role === "kasir") {
+  if (authState.role === "kasir") {
     return <KasirLayout />;
   }
 
   // Fallback jika role tidak valid
-  return <div>Peran tidak valid.</div>;
+  return (
+    <div className="flex justify-center items-center h-screen">
+      <p>Role pengguna tidak valid: {authState.role}</p>
+    </div>
+  );
 }
 
 export default RoleBasedLayout;

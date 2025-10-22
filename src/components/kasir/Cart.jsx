@@ -1,4 +1,4 @@
-// src/components/kasir/Cart.jsx
+// src/components/kasir/Cart.jsx (VERSI FINAL & ANTI-BOCOR)
 
 import React from "react";
 import { Button } from "@/components/ui/Button.jsx";
@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@/components/ui/Card.jsx";
 import { Textarea } from "@/components/ui/Textarea.jsx";
-import { Trash2 } from "lucide-react";
+import { Trash2, Loader2 } from "lucide-react";
 import { Separator } from "@/components/ui/Separator.jsx";
 import { Checkbox } from "@/components/ui/Checkbox.jsx";
 import { Label } from "@/components/ui/Label.jsx";
@@ -31,8 +31,8 @@ function Cart({
   metodePembayaran,
   setMetodePembayaran,
   selectedPelanggan,
-
   isPoinSystemActive,
+  isUpgradingMember, // <-- Pastikan ini ada di props
   isBonusMerchandiseActive,
   merchandiseName,
   bonusMerchandiseDibawa,
@@ -45,8 +45,10 @@ function Cart({
   biayaLayanan,
   onOpenAlamatModal,
 }) {
-  const isLayananAntarJemputAktif = pengaturan?.layanan_antar_jemput_aktif;
+  // BENERIN: Gunakan nama kolom asli dari "Kamus Final"
+  const isLayananAntarJemputAktif = pengaturan?.is_delivery_service_active;
   const isDeliverySelected = tipeLayanan !== "dine_in";
+
   return (
     <Card className="sticky top-20">
       <CardHeader>
@@ -58,16 +60,17 @@ function Cart({
             <Label>Keranjang</Label>
             <div className="mt-2 space-y-2 max-h-48 overflow-y-auto pr-2">
               {cart.length > 0 ? (
-                cart?.map((item) => (
+                cart.map((item) => (
                   <div
                     key={item.id}
                     className="flex justify-between items-center text-sm p-2 bg-muted rounded-md"
                   >
                     <div>
-                      <p className="font-semibold">{item.nama_paket}</p>
+                      {/* BENERIN: Gunakan nama kolom asli */}
+                      <p className="font-semibold">{item.name}</p>
                       <p className="text-muted-foreground">
-                        {item.jumlah} {item.satuan} x Rp{" "}
-                        {item.harga.toLocaleString("id-ID")}
+                        {item.jumlah} {item.unit} x Rp{" "}
+                        {item.price.toLocaleString("id-ID")}
                       </p>
                     </div>
                     <div className="flex items-center gap-4">
@@ -143,10 +146,9 @@ function Cart({
                     value={jarakKm}
                     onChange={(e) => setJarakKm(e.target.value)}
                   />
-                  {/* V-- [BARU] Tampilkan Info & Tombol Alamat --V */}
                   <div className="text-xs text-muted-foreground mt-1">
-                    {selectedPelanggan.alamat ? (
-                      <span>Alamat: {selectedPelanggan.alamat}</span>
+                    {selectedPelanggan.address ? (
+                      <span>Alamat: {selectedPelanggan.address}</span>
                     ) : (
                       <span className="text-yellow-600">
                         Pelanggan ini belum punya alamat.
@@ -159,21 +161,21 @@ function Cart({
                       className="h-auto p-1 ml-1"
                       onClick={onOpenAlamatModal}
                     >
-                      {selectedPelanggan.alamat ? "(Edit)" : "(Tambah)"}
+                      {selectedPelanggan.address ? "(Edit)" : "(Tambah)"}
                     </Button>
                   </div>
-                  {/* ^-- Sampai sini --^ */}
                 </div>
               )}
             </div>
           )}
 
-          {/* [FIX & LOGIC] Checkbox 'totebag' diganti dengan 'merchandise' dinamis */}
           {isPoinSystemActive && isBonusMerchandiseActive && (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 pt-4 border-t">
               <Checkbox
                 id="bonus_merchandise_dibawa"
+                // 'bonusMerchandiseDibawa' HARUS ADA DI PROPS
                 checked={bonusMerchandiseDibawa}
+                // 'setBonusMerchandiseDibawa' HARUS ADA DI PROPS
                 onCheckedChange={setBonusMerchandiseDibawa}
               />
               <Label htmlFor="bonus_merchandise_dibawa">
@@ -229,6 +231,14 @@ function Cart({
               <span className="text-muted-foreground">Subtotal</span>
               <span>Rp {subtotal.toLocaleString("id-ID")}</span>
             </div>
+            {isUpgradingMember && (
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Biaya Membership</span>
+                <span>
+                  Rp {(pengaturan?.membership_fee || 0).toLocaleString("id-ID")}
+                </span>
+              </div>
+            )}
 
             {biayaLayanan > 0 && (
               <div className="flex justify-between text-sm">
@@ -250,10 +260,20 @@ function Cart({
 
           <Button
             onClick={onProsesTransaksi}
-            disabled={isProcessing || !selectedPelanggan || cart.length === 0}
+            disabled={
+              isProcessing ||
+              !selectedPelanggan ||
+              (cart.length === 0 && !isUpgradingMember)
+            }
             className="w-full"
           >
-            {isProcessing ? "Memproses..." : "Proses Transaksi"}
+            {isProcessing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Memproses...
+              </>
+            ) : (
+              "Proses Transaksi"
+            )}
           </Button>
         </div>
       </CardContent>

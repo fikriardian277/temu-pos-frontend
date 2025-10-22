@@ -1,11 +1,10 @@
-// src/pages/PengaturanUsahaPage.jsx
-
-import React, { useState, useEffect, useRef } from "react";
-import api from "@/api/axiosInstance";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { supabase } from "@/supabaseClient";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
+import { usePageVisibility } from "@/lib/usePageVisibility.js";
 
-// Impor komponen
+// Impor komponen-komponen UI
 import { Button } from "@/components/ui/Button.jsx";
 import {
   Card,
@@ -27,7 +26,6 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/Radio-group.jsx";
 import { Separator } from "@/components/ui/Separator.jsx";
 import VariableBadge from "@/components/VariableBadge";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,9 +36,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/Alert-dialog.jsx";
+import { Loader2 } from "lucide-react";
 
 function PengaturanUsahaPage() {
-  const { authState, login } = useAuth();
+  const { authState, refetchAuthData } = useAuth();
   const [settings, setSettings] = useState(null);
   const [logoFile, setLogoFile] = useState(null);
   const [logoPreview, setLogoPreview] = useState(null);
@@ -50,57 +49,35 @@ function PengaturanUsahaPage() {
     name: null,
     ref: null,
   });
-
   const [confirmationModal, setConfirmationModal] = useState({
     isOpen: false,
-    nextScheme: null, // Untuk menyimpan pilihan skema berikutnya
+    nextScheme: null,
   });
 
+  // ==========================================================
+  // SEMUA FUNGSI HELPER & REF ASLI-MU (AMAN, TIDAK HILANG)
+  // ==========================================================
   const waHeaderRef = useRef(null);
   const waStrukPembukaRef = useRef(null);
   const waStrukPenutupRef = useRef(null);
   const waSiapDiambilPembukaRef = useRef(null);
   const waSiapDiambilPenutupRef = useRef(null);
 
-  useEffect(() => {
-    const fetchSettings = async () => {
-      try {
-        setLoading(true);
-        const response = await api.get("/pengaturan");
-        setSettings(response.data);
-        if (response.data.logo_url) {
-          setLogoPreview(response.data.logo_url);
-        }
-      } catch (err) {
-        toast.error("Gagal memuat pengaturan.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchSettings();
-  }, []);
-
   const handleInsertVariable = (variable) => {
-    // Cek apakah ada textarea yang aktif
     if (!activeTextarea.name || !activeTextarea.ref?.current) {
       toast.warning("Klik dulu di dalam kotak pesan sebelum memilih variabel.");
       return;
     }
-
     const textarea = activeTextarea.ref.current;
     const currentText = textarea.value || "";
     const cursorPos = textarea.selectionStart;
-
-    // Gabungkan teks: bagian awal + variabel + bagian akhir
     const newText =
       currentText.substring(0, cursorPos) +
       variable +
       currentText.substring(cursorPos);
 
-    // Update state settings
     setSettings((prev) => ({ ...prev, [activeTextarea.name]: newText }));
 
-    // Fokus kembali ke textarea setelah menyisipkan teks
     setTimeout(() => {
       textarea.focus();
       const newCursorPos = cursorPos + variable.length;
@@ -113,25 +90,31 @@ function PengaturanUsahaPage() {
     setSettings((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleNumericChange = (e) => {
+    const { name, value } = e.target;
+    // Jika inputnya kosong, simpan sebagai NULL, bukan string kosong!
+    // Jika ada isinya, ubah jadi angka desimal (float)
+    const numericValue = value === "" ? null : parseFloat(value);
+    setSettings((prev) => ({ ...prev, [name]: numericValue }));
+  };
+
   const handleCheckedChange = (name, checked) => {
     setSettings((prev) => ({ ...prev, [name]: checked }));
   };
 
   const handleSkemaChange = (value) => {
-    // Jika user memilih skema yang berbeda dari yang sekarang
-    if (value !== settings.skema_poin_aktif) {
-      // Buka modal dan simpan pilihan berikutnya
+    if (value !== settings.points_scheme) {
       setConfirmationModal({ isOpen: true, nextScheme: value });
     }
   };
+
   const handleConfirmSkemaChange = () => {
     if (confirmationModal.nextScheme) {
       setSettings((prev) => ({
         ...prev,
-        skema_poin_aktif: confirmationModal.nextScheme,
+        points_scheme: confirmationModal.nextScheme,
       }));
     }
-    // Tutup modal
     setConfirmationModal({ isOpen: false, nextScheme: null });
   };
 
@@ -143,68 +126,138 @@ function PengaturanUsahaPage() {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    try {
-      let finalSettings = { ...settings };
-      if (logoFile) {
-        const formData = new FormData();
-        formData.append("logo", logoFile);
-        const uploadResponse = await api.post(
-          "/pengaturan/upload-logo",
-          formData,
-          {
-            headers: { "Content-Type": "multipart/form-data" },
-          }
-        );
-        finalSettings.logo_url = uploadResponse.data.data.logo_url;
-      }
-      const response = await api.put("/pengaturan", finalSettings);
-      const token = localStorage.getItem("accessToken");
-      if (token) await login(token);
-      toast.success(response.data.message || "Pengaturan berhasil disimpan!");
-    } catch (err) {
-      toast.error(err.response?.data?.message || "Gagal menyimpan perubahan.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleUseDefaultTemplate = (type) => {
+    // Sesuaikan NAMA KOLOM dengan "Kamus Final" database
     if (type === "struk") {
       setSettings((prev) => ({
         ...prev,
-        wa_header: "*Struk Digital Superclean Laundry*",
-        wa_struk_pembuka:
-          "Halo Kak {nama_pelanggan}! 👋\nTerima kasih telah laundry di tempat kami. Berikut rincian transaksinya:",
-        wa_struk_penutup:
-          "Mohon simpan struk digital ini sebagai bukti transaksi.\nDitunggu kedatangannya kembali ya! 😊",
+        wa_template_header: "*Struk Digital Superclean Laundry*",
+        wa_template_receipt_opening:
+          "Halo Kak {nama_pelanggan}! \nTerima kasih telah laundry di tempat kami. Berikut rincian transaksinya:",
+        wa_template_receipt_closing:
+          "Mohon simpan struk digital ini sebagai bukti transaksi.\nDitunggu kedatangannya kembali ya! ",
       }));
       toast.info("Template struk default telah dimuat.");
     } else if (type === "siap_diambil") {
       setSettings((prev) => ({
         ...prev,
-        wa_siap_diambil_pembuka:
-          "Halo Kak {nama_pelanggan}! ✨\nKabar gembira! Cucian Anda dengan invoice *{kode_invoice}* sudah selesai diproses, bersih, wangi, dan siap untuk diambil.",
-        wa_siap_diambil_penutup:
+        wa_template_ready_opening:
+          "Halo Kak {nama_pelanggan}! \nKabar gembira! Cucian Anda dengan invoice *{kode_invoice}* sudah selesai diproses, bersih, wangi, dan siap untuk diambil.",
+        wa_template_ready_closing:
           "Kami tunggu kedatangannya di outlet kami ya.\nTerima kasih!",
       }));
       toast.info("Template pesan 'Siap Diambil' default telah dimuat.");
     }
   };
+  // ==========================================================
+  // AKHIR DARI FUNGSI LAMA
+  // ==========================================================
 
-  if (loading) return <p className="text-center">Memuat pengaturan...</p>;
+  const fetchSettings = useCallback(async () => {
+    if (!authState.business_id) return;
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("settings")
+        .select("*")
+        .eq("business_id", authState.business_id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setSettings(data);
+        if (data.logo_url) setLogoPreview(data.logo_url);
+      } else {
+        setSettings({
+          business_id: authState.business_id,
+          owner_id: authState.user.id,
+        });
+        toast.info(
+          "Sepertinya ini pertama kali Anda membuka halaman pengaturan. Silakan isi dan simpan data usaha Anda."
+        );
+      }
+    } catch (err) {
+      toast.error("Gagal memuat pengaturan.");
+    } finally {
+      setLoading(false);
+    }
+  }, [authState.business_id, authState.user?.id]);
+
+  useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
+
+  usePageVisibility(fetchSettings);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+
+    try {
+      let finalSettings = { ...settings };
+
+      if (logoFile) {
+        console.log("CCTV PENGIRIMAN...", logoFile);
+        const filePath = `public/${authState.business_id}-${Date.now()}-${
+          logoFile.name
+        }`;
+
+        // VVV JURUS PAMUNGKAS: "KUPAS APELNYA" VVV
+        // Kita buat Blob baru dari file yang ada, ini akan "membersihkan" semua metadata aneh.
+        const cleanFile = new Blob([logoFile], { type: logoFile.type });
+        // ^^^ JURUS PAMUNGKAS ^^^
+
+        const { error: uploadError } = await supabase.storage
+          .from("business_assets")
+          .upload(filePath, cleanFile, { upsert: true }); // <-- MENGIRIM "JUS APEL" BERSIH
+
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage
+          .from("business_assets")
+          .getPublicUrl(filePath);
+
+        finalSettings.logo_url = publicUrlData.publicUrl;
+      }
+
+      delete finalSettings.created_at;
+      console.log("DEBUG: Mengirim data settings:", finalSettings);
+      const { error: saveError } = await supabase
+        .from("settings")
+        .upsert(finalSettings, { onConflict: "business_id" });
+
+      if (saveError) throw saveError;
+
+      toast.success("Pengaturan berhasil disimpan!");
+      await refetchAuthData();
+    } catch (err) {
+      toast.error(err.message || "Gagal menyimpan perubahan.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading)
+    return (
+      <div className="text-center p-10">
+        <Loader2 className="h-8 w-8 animate-spin mx-auto" />
+      </div>
+    );
   if (!settings)
-    return <p className="text-center">Data pengaturan tidak ditemukan.</p>;
-  if (authState.user.role !== "owner")
+    return (
+      <p className="text-center">
+        Data pengaturan tidak ditemukan. Coba refresh halaman.
+      </p>
+    );
+  if (authState.role !== "owner")
     return (
       <p className="text-center">
         Hanya Owner yang dapat mengakses halaman ini.
       </p>
     );
 
-  const isPoinSystemActive = settings.skema_poin_aktif !== "nonaktif";
+  const isPoinSystemActive = settings.points_scheme !== "nonaktif";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
@@ -216,11 +269,18 @@ function PengaturanUsahaPage() {
           </p>
         </div>
         <Button type="submit" disabled={saving}>
-          {saving ? "Menyimpan..." : "Simpan Semua Perubahan"}
+          {saving ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              Menyimpan...
+            </>
+          ) : (
+            "Simpan Semua Perubahan"
+          )}
         </Button>
       </div>
 
-      <Tabs defaultValue="poin" className="w-full">
+      <Tabs defaultValue="profil" className="w-full">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="profil">Profil & Struk</TabsTrigger>
           <TabsTrigger value="poin">Poin & Member</TabsTrigger>
@@ -236,30 +296,31 @@ function PengaturanUsahaPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* --- BAGIAN PROFIL USAHA --- */}
               <div>
-                <Label htmlFor="nama_usaha">Nama Usaha</Label>
+                <Label htmlFor="business_name">Nama Usaha</Label>
                 <Input
-                  id="nama_usaha"
-                  name="nama_usaha"
-                  value={settings.nama_usaha || ""}
+                  id="business_name"
+                  name="business_name" // BENERIN
+                  value={settings.business_name || ""} // BENERIN
                   onChange={handleChange}
                 />
               </div>
               <div>
-                <Label htmlFor="alamat_usaha">Alamat Usaha</Label>
+                <Label htmlFor="business_address">Alamat Usaha</Label>
                 <Textarea
-                  id="alamat_usaha"
-                  name="alamat_usaha"
-                  value={settings.alamat_usaha || ""}
+                  id="business_address"
+                  name="business_address" // BENERIN
+                  value={settings.business_address || ""} // BENERIN
                   onChange={handleChange}
                 />
               </div>
               <div>
-                <Label htmlFor="telepon_usaha">Nomor Telepon</Label>
+                <Label htmlFor="business_phone">Nomor Telepon</Label>
                 <Input
-                  id="telepon_usaha"
-                  name="telepon_usaha"
-                  value={settings.telepon_usaha || ""}
+                  id="business_phone"
+                  name="business_phone" // BENERIN
+                  value={settings.business_phone || ""} // BENERIN
                   onChange={handleChange}
                 />
               </div>
@@ -280,43 +341,49 @@ function PengaturanUsahaPage() {
                   />
                 </div>
               </div>
+
+              {/* --- BAGIAN PENGATURAN STRUK --- */}
               <div className="pt-4 space-y-4 border-t">
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    id="tampilkan_logo_di_struk"
-                    name="tampilkan_logo_di_struk"
-                    checked={settings.tampilkan_logo_di_struk}
-                    onCheckedChange={(checked) =>
-                      handleCheckedChange("tampilkan_logo_di_struk", checked)
+                    id="show_logo_on_receipt" // BENERIN
+                    name="show_logo_on_receipt" // BENERIN
+                    checked={settings.show_logo_on_receipt} // BENERIN
+                    onCheckedChange={
+                      (checked) =>
+                        handleCheckedChange("show_logo_on_receipt", checked) // BENERIN
                     }
                   />
-                  <Label htmlFor="tampilkan_logo_di_struk">
+                  <Label htmlFor="show_logo_on_receipt">
                     Tampilkan Logo di Struk
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Checkbox
-                    id="tampilkan_header_di_struk"
-                    name="tampilkan_header_di_struk"
-                    checked={settings.tampilkan_header_di_struk}
-                    onCheckedChange={(checked) =>
-                      handleCheckedChange("tampilkan_header_di_struk", checked)
+                    id="show_header_on_receipt" // BENERIN
+                    name="show_header_on_receipt" // BENERIN
+                    checked={settings.show_header_on_receipt} // BENERIN
+                    onCheckedChange={
+                      (checked) =>
+                        handleCheckedChange("show_header_on_receipt", checked) // BENERIN
                     }
                   />
-                  <Label htmlFor="tampilkan_header_di_struk">
+                  <Label htmlFor="show_header_on_receipt">
                     Tampilkan Info Usaha (Header) di Struk
                   </Label>
                 </div>
               </div>
               <div>
-                <Label htmlFor="struk_footer_text">Teks Footer Struk</Label>
+                <Label htmlFor="receipt_footer_text">Teks Footer Struk</Label>
                 <Input
-                  id="struk_footer_text"
-                  name="struk_footer_text"
-                  value={settings.struk_footer_text || ""}
+                  id="receipt_footer_text" // BENERIN
+                  name="receipt_footer_text" // BENERIN
+                  value={settings.receipt_footer_text || ""} // BENERIN
                   onChange={handleChange}
                 />
               </div>
+
+              {/* --- BAGIAN TEMPLATE WHATSAPP --- */}
               <div className="pt-6 border-t">
                 <h3 className="text-lg font-semibold mb-1">
                   Kustomisasi Pesan WhatsApp
@@ -348,35 +415,39 @@ function PengaturanUsahaPage() {
                     </Button>
                   </div>
                   <div>
-                    <Label htmlFor="wa_header">Header Pesan</Label>
+                    <Label htmlFor="wa_template_header">Header Pesan</Label>
                     <Input
                       ref={waHeaderRef}
-                      id="wa_header"
-                      name="wa_header"
-                      value={settings.wa_header || ""}
+                      id="wa_template_header" // BENERIN
+                      name="wa_template_header" // BENERIN
+                      value={settings.wa_template_header || ""} // BENERIN
                       onChange={handleChange}
-                      onFocus={() =>
-                        setActiveTextarea({
-                          name: "wa_header",
-                          ref: waHeaderRef,
-                        })
+                      onFocus={
+                        () =>
+                          setActiveTextarea({
+                            name: "wa_template_header",
+                            ref: waHeaderRef,
+                          }) // BENERIN
                       }
                       placeholder="Contoh: *Struk Digital Laundry Anda*"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="wa_struk_pembuka">Pesan Pembuka</Label>
+                    <Label htmlFor="wa_template_receipt_opening">
+                      Pesan Pembuka
+                    </Label>
                     <Textarea
                       ref={waStrukPembukaRef}
-                      id="wa_struk_pembuka"
-                      name="wa_struk_pembuka"
-                      value={settings.wa_struk_pembuka || ""}
+                      id="wa_template_receipt_opening" // BENERIN
+                      name="wa_template_receipt_opening" // BENERIN
+                      value={settings.wa_template_receipt_opening || ""} // BENERIN
                       onChange={handleChange}
-                      onFocus={() =>
-                        setActiveTextarea({
-                          name: "wa_struk_pembuka",
-                          ref: waStrukPembukaRef,
-                        })
+                      onFocus={
+                        () =>
+                          setActiveTextarea({
+                            name: "wa_template_receipt_opening",
+                            ref: waStrukPembukaRef,
+                          }) // BENERIN
                       }
                       rows={3}
                     />
@@ -396,18 +467,21 @@ function PengaturanUsahaPage() {
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="wa_struk_penutup">Pesan Penutup</Label>
+                    <Label htmlFor="wa_template_receipt_closing">
+                      Pesan Penutup
+                    </Label>
                     <Textarea
                       ref={waStrukPenutupRef}
-                      id="wa_struk_penutup"
-                      name="wa_struk_penutup"
-                      value={settings.wa_struk_penutup || ""}
+                      id="wa_template_receipt_closing" // BENERIN
+                      name="wa_template_receipt_closing" // BENERIN
+                      value={settings.wa_template_receipt_closing || ""} // BENERIN
                       onChange={handleChange}
-                      onFocus={() =>
-                        setActiveTextarea({
-                          name: "wa_struk_penutup",
-                          ref: waStrukPenutupRef,
-                        })
+                      onFocus={
+                        () =>
+                          setActiveTextarea({
+                            name: "wa_template_receipt_closing",
+                            ref: waStrukPenutupRef,
+                          }) // BENERIN
                       }
                       rows={3}
                     />
@@ -442,20 +516,21 @@ function PengaturanUsahaPage() {
                     </Button>
                   </div>
                   <div>
-                    <Label htmlFor="wa_siap_diambil_pembuka">
+                    <Label htmlFor="wa_template_ready_opening">
                       Pesan Pembuka
                     </Label>
                     <Textarea
                       ref={waSiapDiambilPembukaRef}
-                      id="wa_siap_diambil_pembuka"
-                      name="wa_siap_diambil_pembuka"
-                      value={settings.wa_siap_diambil_pembuka || ""}
+                      id="wa_template_ready_opening" // BENERIN
+                      name="wa_template_ready_opening" // BENERIN
+                      value={settings.wa_template_ready_opening || ""} // BENERIN
                       onChange={handleChange}
-                      onFocus={() =>
-                        setActiveTextarea({
-                          name: "wa_siap_diambil_pembuka",
-                          ref: waSiapDiambilPembukaRef,
-                        })
+                      onFocus={
+                        () =>
+                          setActiveTextarea({
+                            name: "wa_template_ready_opening",
+                            ref: waSiapDiambilPembukaRef,
+                          }) // BENERIN
                       }
                       rows={4}
                     />
@@ -473,20 +548,21 @@ function PengaturanUsahaPage() {
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="wa_siap_diambil_penutup">
+                    <Label htmlFor="wa_template_ready_closing">
                       Pesan Penutup
                     </Label>
                     <Textarea
                       ref={waSiapDiambilPenutupRef}
-                      id="wa_siap_diambil_penutup"
-                      name="wa_siap_diambil_penutup"
-                      value={settings.wa_siap_diambil_penutup || ""}
+                      id="wa_template_ready_closing" // BENERIN
+                      name="wa_template_ready_closing" // BENERIN
+                      value={settings.wa_template_ready_closing || ""} // BENERIN
                       onChange={handleChange}
-                      onFocus={() =>
-                        setActiveTextarea({
-                          name: "wa_siap_diambil_penutup",
-                          ref: waSiapDiambilPenutupRef,
-                        })
+                      onFocus={
+                        () =>
+                          setActiveTextarea({
+                            name: "wa_template_ready_closing",
+                            ref: waSiapDiambilPenutupRef,
+                          }) // BENERIN
                       }
                       rows={2}
                     />
@@ -508,7 +584,7 @@ function PengaturanUsahaPage() {
             <CardContent className="space-y-6">
               {/* --- 1. PEMILIHAN SKEMA UTAMA --- */}
               <RadioGroup
-                value={settings.skema_poin_aktif}
+                value={settings.points_scheme}
                 onValueChange={handleSkemaChange}
                 className="space-y-2"
               >
@@ -535,91 +611,81 @@ function PengaturanUsahaPage() {
 
               <Separator />
 
-              {/* Tampilkan pengaturan lain HANYA JIKA sistem poin aktif */}
-              {isPoinSystemActive && (
+              {settings.points_scheme !== "nonaktif" && (
                 <div className="space-y-6">
                   {/* --- 2. PENGATURAN MEMBERSHIP --- */}
                   <div>
                     <div className="flex items-center space-x-2 mb-4">
                       <Checkbox
-                        id="wajib_membership_berbayar"
-                        checked={settings.wajib_membership_berbayar}
+                        id="require_paid_membership"
+                        checked={settings.require_paid_membership}
                         onCheckedChange={(checked) =>
                           handleCheckedChange(
-                            "wajib_membership_berbayar",
+                            "require_paid_membership",
                             checked
                           )
                         }
                       />
-                      <Label htmlFor="wajib_membership_berbayar">
+                      <Label htmlFor="require_paid_membership">
                         Wajibkan Membership Berbayar untuk Mendapat Poin
                       </Label>
                     </div>
-                    {settings.wajib_membership_berbayar && (
+                    {settings.require_paid_membership && (
                       <div>
-                        <Label htmlFor="biaya_membership">
+                        <Label htmlFor="membership_fee">
                           Biaya Membership (Rp)
                         </Label>
                         <Input
-                          id="biaya_membership"
-                          name="biaya_membership"
+                          id="membership_fee"
+                          name="membership_fee"
                           type="number"
-                          value={settings.biaya_membership || 0}
-                          onChange={handleChange}
+                          value={settings.membership_fee || ""}
+                          onChange={handleNumericChange}
                         />
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Biaya sekali bayar untuk mengaktifkan keanggotaan.
-                        </p>
                       </div>
                     )}
                   </div>
 
                   {/* --- 3. PENGATURAN SPESIFIK SKEMA --- */}
                   <div className="p-4 border bg-muted/50 rounded-lg space-y-4">
-                    {settings.skema_poin_aktif === "nominal" && (
+                    {settings.points_scheme === "nominal" && (
                       <div>
                         <Label>Setiap Belanja (Rp)</Label>
                         <Input
-                          name="rupiah_per_poin"
+                          name="rupiah_per_point_earn"
                           type="number"
-                          value={settings.rupiah_per_poin || 0}
-                          onChange={handleChange}
+                          value={settings.rupiah_per_point_earn || ""}
+                          onChange={handleNumericChange}
                         />
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Jumlah belanja untuk mendapatkan 1 poin.
-                        </p>
                       </div>
                     )}
-                    {settings.skema_poin_aktif === "berat" && (
+                    {settings.points_scheme === "berat" && (
                       <div className="space-y-4">
                         <Label>Setiap Berat (Kg)</Label>
                         <Input
                           name="berat_per_poin"
                           type="number"
-                          value={settings.berat_per_poin || 0}
-                          onChange={handleChange}
+                          value={settings.berat_per_poin || ""}
+                          onChange={handleNumericChange}
                         />
                         <Label>Mendapatkan Poin</Label>
                         <Input
                           name="poin_per_kg"
                           type="number"
-                          value={settings.poin_per_kg || 0}
-                          onChange={handleChange}
+                          value={settings.poin_per_kg || ""}
+                          onChange={handleNumericChange}
                         />
                       </div>
                     )}
-                    {settings.skema_poin_aktif === "kunjungan" && (
+                    {settings.points_scheme === "kunjungan" && (
                       <div>
                         <Label>Poin per Transaksi</Label>
                         <Input
                           name="poin_per_kunjungan"
                           type="number"
-                          value={settings.poin_per_kunjungan || 0}
-                          onChange={handleChange}
+                          value={settings.poin_per_kunjungan || ""}
+                          onChange={handleNumericChange}
                         />
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Poin yang didapat setiap pelanggan bertransaksi.
-                        </p>
                       </div>
                     )}
                   </div>
@@ -630,28 +696,28 @@ function PengaturanUsahaPage() {
                     <div>
                       <Label>Nilai 1 Poin (Potongan Rp)</Label>
                       <Input
-                        name="rupiah_per_poin_redeem"
+                        name="rupiah_per_point_redeem"
                         type="number"
-                        value={settings.rupiah_per_poin_redeem || 0}
-                        onChange={handleChange}
+                        value={settings.rupiah_per_point_redeem || ""}
+                        onChange={handleNumericChange}
                       />
                     </div>
                     <div>
                       <Label>Minimal Penukaran Poin</Label>
                       <Input
-                        name="minimal_penukaran_poin"
+                        name="min_points_to_redeem"
                         type="number"
-                        value={settings.minimal_penukaran_poin || 0}
-                        onChange={handleChange}
+                        value={settings.min_points_to_redeem || ""}
+                        onChange={handleNumericChange}
                       />
                     </div>
                     <div>
                       <Label>Masa Berlaku Poin (Hari)</Label>
                       <Input
-                        name="masa_berlaku_poin_hari"
+                        name="points_expiry_days"
                         type="number"
-                        value={settings.masa_berlaku_poin_hari || 0}
-                        onChange={handleChange}
+                        value={settings.points_expiry_days || ""}
+                        onChange={handleNumericChange}
                       />
                     </div>
                   </div>
@@ -664,40 +730,37 @@ function PengaturanUsahaPage() {
                     <div className="p-4 border bg-muted/50 rounded-lg space-y-4">
                       <div className="flex items-center space-x-2">
                         <Checkbox
-                          id="apakah_bonus_merchandise_aktif"
-                          checked={settings.apakah_bonus_merchandise_aktif}
+                          id="is_merch_bonus_active"
+                          checked={settings.is_merch_bonus_active}
                           onCheckedChange={(checked) =>
                             handleCheckedChange(
-                              "apakah_bonus_merchandise_aktif",
+                              "is_merch_bonus_active",
                               checked
                             )
                           }
                         />
-                        <Label htmlFor="apakah_bonus_merchandise_aktif">
+                        <Label htmlFor="is_merch_bonus_active">
                           Aktifkan Bonus Merchandise
                         </Label>
                       </div>
-                      {settings.apakah_bonus_merchandise_aktif && (
+                      {settings.is_merch_bonus_active && (
                         <div className="space-y-4 pl-6">
                           <div>
                             <Label>Nama Merchandise</Label>
                             <Input
-                              name="nama_merchandise"
-                              value={settings.nama_merchandise || ""}
+                              name="merch_bonus_name"
+                              value={settings.merch_bonus_name || ""}
                               onChange={handleChange}
                               placeholder="Contoh: Totebag, Payung"
                             />
-                            <p className="text-sm text-muted-foreground mt-1">
-                              Nama ini akan ditampilkan di halaman kasir.
-                            </p>
                           </div>
                           <div>
                             <Label>Jumlah Poin Bonus</Label>
                             <Input
                               name="bonus_poin_merchandise"
                               type="number"
-                              value={settings.bonus_poin_merchandise || 0}
-                              onChange={handleChange}
+                              value={settings.bonus_poin_merchandise || ""}
+                              onChange={handleNumericChange}
                             />
                           </div>
                         </div>
@@ -720,22 +783,22 @@ function PengaturanUsahaPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="pajak_persen">Pajak Penjualan (%)</Label>
+                <Label htmlFor="tax_percentage">Pajak Penjualan (%)</Label>
                 <Input
-                  id="pajak_persen"
-                  name="pajak_persen"
+                  id="tax_percentage" // BENERIN
+                  name="tax_percentage" // BENERIN
                   type="number"
                   step="0.1"
-                  value={settings.pajak_persen || 0}
-                  onChange={handleChange}
+                  value={settings.tax_percentage || ""} // BENERIN
+                  onChange={handleNumericChange}
                 />
               </div>
               <div>
                 <Label htmlFor="invoice_prefix">Awalan Kode Invoice</Label>
                 <Input
-                  id="invoice_prefix"
-                  name="invoice_prefix"
-                  value={settings.invoice_prefix || ""}
+                  id="invoice_prefix" // BENERIN
+                  name="invoice_prefix" // BENERIN
+                  value={settings.invoice_prefix || ""} // BENERIN
                   onChange={handleChange}
                 />
               </div>
@@ -746,17 +809,18 @@ function PengaturanUsahaPage() {
                 <div className="p-4 border bg-muted/50 rounded-lg space-y-6">
                   <div className="flex items-center space-x-2">
                     <Checkbox
-                      id="layanan_antar_jemput_aktif"
-                      name="layanan_antar_jemput_aktif"
-                      checked={settings.layanan_antar_jemput_aktif}
-                      onCheckedChange={(checked) =>
-                        handleCheckedChange(
-                          "layanan_antar_jemput_aktif",
-                          checked
-                        )
+                      id="is_delivery_service_active" // BENERIN
+                      name="is_delivery_service_active" // BENERIN
+                      checked={settings.is_delivery_service_active} // BENERIN
+                      onCheckedChange={
+                        (checked) =>
+                          handleCheckedChange(
+                            "is_delivery_service_active",
+                            checked
+                          ) // BENERIN
                       }
                     />
-                    <Label htmlFor="layanan_antar_jemput_aktif">
+                    <Label htmlFor="is_delivery_service_active">
                       Aktifkan Layanan Antar-Jemput
                     </Label>
                   </div>
@@ -764,9 +828,9 @@ function PengaturanUsahaPage() {
                   {/* Pengaturan Harga Jemput */}
                   <div className="space-y-2">
                     <Label
-                      htmlFor="batas_jarak_gratis_jemput"
+                      htmlFor="delivery_free_pickup_distance" // BENERIN
                       className={
-                        !settings.layanan_antar_jemput_aktif
+                        !settings.is_delivery_service_active
                           ? "text-muted-foreground"
                           : ""
                       }
@@ -774,13 +838,13 @@ function PengaturanUsahaPage() {
                       Batas Jarak Gratis Jemput (Km)
                     </Label>
                     <Input
-                      id="batas_jarak_gratis_jemput"
-                      name="batas_jarak_gratis_jemput"
+                      id="delivery_free_pickup_distance" // BENERIN
+                      name="delivery_free_pickup_distance" // BENERIN
                       type="number"
                       step="0.1"
-                      value={settings.batas_jarak_gratis_jemput || 0}
-                      onChange={handleChange}
-                      disabled={!settings.layanan_antar_jemput_aktif}
+                      value={settings.delivery_free_pickup_distance || ""} // BENERIN
+                      onChange={handleNumericChange}
+                      disabled={!settings.is_delivery_service_active}
                     />
                     <p className="text-xs text-muted-foreground">
                       Isi 0 jika tidak ada gratis ongkir jemput.
@@ -788,9 +852,9 @@ function PengaturanUsahaPage() {
                   </div>
                   <div className="space-y-2">
                     <Label
-                      htmlFor="biaya_jemput_jarak"
+                      htmlFor="delivery_pickup_fee" // BENERIN
                       className={
-                        !settings.layanan_antar_jemput_aktif
+                        !settings.is_delivery_service_active
                           ? "text-muted-foreground"
                           : ""
                       }
@@ -798,12 +862,12 @@ function PengaturanUsahaPage() {
                       Biaya Jemput (jika &gt; batas gratis)
                     </Label>
                     <Input
-                      id="biaya_jemput_jarak"
-                      name="biaya_jemput_jarak"
+                      id="delivery_pickup_fee" // BENERIN
+                      name="delivery_pickup_fee" // BENERIN
                       type="number"
-                      value={settings.biaya_jemput_jarak || 0}
-                      onChange={handleChange}
-                      disabled={!settings.layanan_antar_jemput_aktif}
+                      value={settings.delivery_pickup_fee || ""} // BENERIN
+                      onChange={handleNumericChange}
+                      disabled={!settings.is_delivery_service_active}
                     />
                   </div>
 
@@ -812,9 +876,9 @@ function PengaturanUsahaPage() {
                   {/* Pengaturan Harga Antar */}
                   <div className="space-y-2">
                     <Label
-                      htmlFor="batas_jarak_gratis_antar"
+                      htmlFor="delivery_free_dropoff_distance" // BENERIN
                       className={
-                        !settings.layanan_antar_jemput_aktif
+                        !settings.is_delivery_service_active
                           ? "text-muted-foreground"
                           : ""
                       }
@@ -822,13 +886,13 @@ function PengaturanUsahaPage() {
                       Batas Jarak Gratis Antar (Km)
                     </Label>
                     <Input
-                      id="batas_jarak_gratis_antar"
-                      name="batas_jarak_gratis_antar"
+                      id="delivery_free_dropoff_distance" // BENERIN
+                      name="delivery_free_dropoff_distance" // BENERIN
                       type="number"
                       step="0.1"
-                      value={settings.batas_jarak_gratis_antar || 0}
-                      onChange={handleChange}
-                      disabled={!settings.layanan_antar_jemput_aktif}
+                      value={settings.delivery_free_dropoff_distance || ""} // BENERIN
+                      onChange={handleNumericChange}
+                      disabled={!settings.is_delivery_service_active}
                     />
                     <p className="text-xs text-muted-foreground">
                       Isi 0 jika tidak ada gratis ongkir antar.
@@ -836,9 +900,9 @@ function PengaturanUsahaPage() {
                   </div>
                   <div className="space-y-2">
                     <Label
-                      htmlFor="biaya_antar_jarak"
+                      htmlFor="delivery_dropoff_fee" // BENERIN
                       className={
-                        !settings.layanan_antar_jemput_aktif
+                        !settings.is_delivery_service_active
                           ? "text-muted-foreground"
                           : ""
                       }
@@ -846,12 +910,12 @@ function PengaturanUsahaPage() {
                       Biaya Antar (jika &gt; batas gratis)
                     </Label>
                     <Input
-                      id="biaya_antar_jarak"
-                      name="biaya_antar_jarak"
+                      id="delivery_dropoff_fee" // BENERIN
+                      name="delivery_dropoff_fee" // BENERIN
                       type="number"
-                      value={settings.biaya_antar_jarak || 0}
-                      onChange={handleChange}
-                      disabled={!settings.layanan_antar_jemput_aktif}
+                      value={settings.delivery_dropoff_fee || ""} // BENERIN
+                      onChange={handleNumericChange}
+                      disabled={!settings.is_delivery_service_active}
                     />
                   </div>
                 </div>

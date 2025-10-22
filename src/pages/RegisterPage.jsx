@@ -1,10 +1,10 @@
 // src/pages/RegisterPage.jsx
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import api from "@/api/axiosInstance";
-import { useAuth } from "@/context/AuthContext";
 import { Loader2 } from "lucide-react";
+import { supabase } from "@/supabaseClient";
+import { toast } from "sonner";
 
 // Impor komponen-komponen dari shadcn/ui
 import { Button } from "@/components/ui/Button.jsx";
@@ -29,7 +29,6 @@ function RegisterPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -40,19 +39,28 @@ function RegisterPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await api.post("/usaha/register", formData);
-      const { accessToken } = response.data;
-      if (accessToken) {
-        login(accessToken);
-        navigate("/dashboard", { replace: true });
-      } else {
-        setError(
-          "Registrasi berhasil, tapi login otomatis gagal. Silakan coba login manual."
-        );
+      // INI DIA CARA YANG BENAR
+      const { data, error } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          // "Menitipkan" data tambahan untuk dibaca oleh Trigger di backend
+          data: {
+            full_name: formData.nama_lengkap,
+            business_name: formData.nama_usaha,
+          },
+        },
+      });
+
+      if (error) {
+        throw error;
       }
+
+      // Jika berhasil, AuthContext akan otomatis mendeteksi sesi baru
+      // Kita tidak perlu login manual lagi!
+      toast.success("Registrasi berhasil! silakan cek email Anda.");
     } catch (err) {
-      const message =
-        err.response?.data?.message || "Terjadi kesalahan. Coba lagi.";
+      const message = err.message || "Terjadi kesalahan. Coba lagi.";
       setError(message);
     } finally {
       setLoading(false);

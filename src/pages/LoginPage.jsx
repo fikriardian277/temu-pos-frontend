@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import api from "@/api/axiosInstance";
-import { useAuth } from "@/context/AuthContext";
+
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/Button.jsx";
 import {
@@ -13,17 +12,18 @@ import {
 } from "@/components/ui/Card.jsx";
 import { Input } from "@/components/ui/Input.jsx";
 import { Label } from "@/components/ui/Label.jsx";
+import { supabase } from "@/supabaseClient";
 
 // ✅ React Icon Google
 import { FcGoogle } from "react-icons/fc";
 
 function LoginPage() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,23 +31,40 @@ function LoginPage() {
     setError("");
 
     try {
-      const response = await api.post("/pengguna/login", {
-        username,
-        password,
+      // INI DIA FUNGSI LOGIN SUPABASE
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
       });
-      const { accessToken } = response.data;
-      if (accessToken) {
-        await login(accessToken);
-        navigate("/dashboard", { replace: true });
-      } else {
-        setError("Login gagal, tidak menerima token.");
+
+      if (error) {
+        throw error; // Lemparkan error agar ditangkap catch
       }
+
+      // Jika berhasil, AuthContext akan otomatis handle sisanya
     } catch (err) {
-      const message =
-        err.response?.data?.message || "Terjadi kesalahan. Coba lagi.";
+      const message = err.message || "Username atau password salah.";
       setError(message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setGoogleLoading(true);
+    setError("");
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: window.location.origin,
+        },
+      });
+      if (error) throw error;
+      // Browser akan redirect ke Google
+    } catch (err) {
+      setError("Gagal memulai login Google: " + err.message);
+      setGoogleLoading(false); // Stop loading kalo gagal mulai
     }
   };
 
@@ -68,13 +85,13 @@ function LoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="grid gap-4">
             <div className="grid gap-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="username"
-                type="text"
-                placeholder="Username Anda"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                id="email"
+                type="email" // <-- Ganti tipenya jadi email biar ada validasi browser
+                placeholder="Email Anda"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
@@ -102,12 +119,15 @@ function LoginPage() {
               variant="outline"
               className="w-full flex items-center justify-center"
               type="button"
-              asChild
+              onClick={handleGoogleLogin} // <-- Panggil fungsi Supabase
+              disabled={loading || googleLoading}
             >
-              <a href="http://localhost:3000/api/pengguna/auth/google">
+              {googleLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
                 <FcGoogle className="w-5 h-5 mr-2" />
-                Lanjutkan dengan Google
-              </a>
+              )}
+              Lanjutkan dengan Google
             </Button>
           </form>
           <div className="mt-4 text-center text-sm">

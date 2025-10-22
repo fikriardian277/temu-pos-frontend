@@ -1,7 +1,9 @@
 // src/pages/LaporanPage.jsx
 
 import React, { useState, useEffect } from "react";
-import api from "../api/axiosInstance";
+import { supabase } from "@/supabaseClient"; // <-- GANTI INI
+import { useAuth } from "@/context/AuthContext"; // <-- TAMBAH INI
+import { toast } from "sonner";
 import {
   ResponsiveContainer,
   LineChart,
@@ -15,6 +17,8 @@ import {
   Cell,
   Legend,
 } from "recharts";
+
+import { Loader2 } from "lucide-react";
 
 // Impor komponen-komponen dari shadcn/ui
 import {
@@ -58,6 +62,7 @@ const StatCard = ({ title, value, subtext }) => (
 );
 
 function LaporanPage() {
+  const { authState } = useAuth();
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [cabangList, setCabangList] = useState([]);
@@ -88,33 +93,73 @@ function LaporanPage() {
   // Efek untuk mengambil daftar cabang (hanya sekali)
   useEffect(() => {
     const fetchCabang = async () => {
+      if (authState.role !== "owner" || !authState.business_id) return; // Hanya owner yg fetch
       try {
-        const res = await api.get("/cabang");
-        setCabangList(res.data);
+        // VVV GANTI PAKE SUPABASE VVV
+        const { data, error } = await supabase
+          .from("branches")
+          .select("id, name") // Ambil 'name' bukan 'nama_cabang'
+          .eq("business_id", authState.business_id)
+          .order("name", { ascending: true });
+
+        if (error) throw error;
+        setCabangList(data);
+        // ^^^ SELESAI ^^^
       } catch (error) {
         console.error("Gagal mengambil daftar cabang:", error);
+        toast.error("Gagal mengambil daftar cabang."); // <-- Tambah toast
       }
     };
-    fetchCabang();
-  }, []);
+    // Panggil HANYA jika authState siap
+    if (authState.isReady) {
+      fetchCabang();
+    }
+  }, [authState.isReady, authState.role, authState.business_id]);
 
   // Efek untuk mengambil data laporan setiap kali filter berubah
   useEffect(() => {
     const fetchData = async () => {
+      // Jangan fetch jika auth belum siap
+      if (!authState.isReady || !authState.business_id) return;
+
+      // Admin hanya bisa lihat cabangnya sendiri
+      const targetBranchId =
+        authState.role === "admin" && authState.branch_id
+          ? authState.branch_id
+          : filters.id_cabang === "semua"
+          ? null
+          : parseInt(filters.id_cabang);
+
       try {
         setLoading(true);
-        const res = await api.get("/laporan/penjualan", { params: filters });
-        setReportData(res.data);
+
+        // VVV GANTI PAKE RPC VVV
+        const { data, error } = await supabase.rpc("get_sales_report_data", {
+          p_start_date: filters.startDate,
+          p_end_date: filters.endDate,
+          p_target_branch_id: targetBranchId,
+          p_business_id: authState.business_id,
+        });
+        // ^^^ SELESAI ^^^
+
+        if (error) throw error;
+        setReportData(data);
       } catch (error) {
         console.error("Gagal fetch laporan:", error);
-        // Set data ke null agar menampilkan pesan 'tidak ada data'
         setReportData(null);
+        toast.error("Gagal memuat data laporan."); // <-- Tambah toast
       } finally {
         setLoading(false);
       }
     };
     fetchData();
-  }, [filters]);
+  }, [
+    filters,
+    authState.isReady,
+    authState.business_id,
+    authState.role,
+    authState.branch_id,
+  ]); // <-- Tambah dependency
 
   // Handler untuk mengubah filter tanggal
   const handleFilterChange = (e) => {
@@ -167,31 +212,37 @@ function LaporanPage() {
                 onChange={handleFilterChange}
               />
             </div>
-            <div>
-              <Label htmlFor="cabang">Cabang</Label>
-              <Select
-                value={filters.id_cabang}
-                onValueChange={handleCabangChange}
-              >
-                <SelectTrigger id="cabang">
-                  <SelectValue placeholder="Pilih Cabang" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="semua">Semua Cabang</SelectItem>
-                  {cabangList?.map((cabang) => (
-                    <SelectItem key={cabang.id} value={String(cabang.id)}>
-                      {cabang.nama_cabang}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {authState.role === "owner" && (
+              <div>
+                <Label htmlFor="cabang">Cabang</Label>
+                <Select
+                  value={filters.id_cabang}
+                  onValueChange={handleCabangChange}
+                >
+                  <SelectTrigger id="cabang">
+                    <SelectValue placeholder="Pilih Cabang" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="semua">Semua Cabang</SelectItem>
+                    {cabangList?.map((cabang) => (
+                      <SelectItem key={cabang.id} value={String(cabang.id)}>
+                        {/* [FIX] Ganti ke 'name' */}
+                        {cabang.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
       {loading ? (
-        <p className="text-center py-10">Memuat laporan...</p>
+        <div className="flex justify-center items-center py-20">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="ml-3">Memuat laporan...</p>
+        </div>
       ) : reportData && reportData.summary ? (
         <>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
