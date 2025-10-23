@@ -64,7 +64,7 @@ function AdminLayout() {
               isSidebarCollapsed ? "w-0" : "w-auto"
             }`}
           >
-            SuperPos
+            Super app
           </h1>
         </div>
         <Button
