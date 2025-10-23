@@ -78,6 +78,7 @@ import {
   Users2,
   PlusCircle,
   Loader2,
+  Download,
 } from "lucide-react";
 import EmptyState from "@/components/ui/EmptyState.jsx";
 
@@ -90,6 +91,8 @@ const formSchema = z.object({
     .min(10, { message: "Nomor HP minimal 10 digit." }),
   address: z.string().optional(),
   branch_id: z.string().optional(),
+  tipe_pelanggan: z.enum(["reguler", "hotel"]).optional(), // <-- TAMBAH INI
+  default_service_id: z.string().optional(),
 });
 
 function PelangganManagementPage() {
@@ -97,16 +100,61 @@ function PelangganManagementPage() {
   const { authState } = useAuth();
   const [pelanggans, setPelanggans] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingCSV, setLoadingCSV] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [cabangs, setCabangs] = useState([]);
   const [isNewModalOpen, setIsNewModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingPelanggan, setEditingPelanggan] = useState(null);
+  const [hotelServices, setHotelServices] = useState([]);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: { name: "", phone_number: "", address: "", branch_id: "" },
   });
+
+  useEffect(() => {
+    const fetchHotelServices = async () => {
+      if (
+        (authState.role === "owner" || authState.role === "admin") &&
+        authState.business_id
+      ) {
+        try {
+          // Cari ID kategori "Hotel & Villa"
+          const { data: categoryData, error: categoryError } = await supabase
+            .from("categories")
+            .select("id")
+            .eq("business_id", authState.business_id)
+            .eq("name", "Hotel & Villa") // Pastikan nama kategori benar
+            .maybeSingle();
+
+          if (categoryError) throw categoryError;
+
+          if (categoryData) {
+            // Ambil layanan di bawah kategori itu
+            const { data: servicesData, error: servicesError } = await supabase
+              .from("services")
+              .select("id, name")
+              .eq("business_id", authState.business_id)
+              .eq("category_id", categoryData.id)
+              .order("name", { ascending: true });
+
+            if (servicesError) throw servicesError;
+            setHotelServices(servicesData || []);
+          } else {
+            setHotelServices([]); // Kosongkan jika kategori tdk ada
+          }
+        } catch (error) {
+          console.error("Gagal fetch layanan hotel:", error);
+          toast.error("Gagal memuat daftar layanan hotel.");
+        }
+      }
+    };
+    if (authState.isReady) {
+      // Panggil setelah auth siap
+      fetchHotelServices();
+    }
+  }, [authState.isReady, authState.role, authState.business_id]);
 
   const fetchPelanggans = useCallback(async () => {
     if (!authState.business_id) return;
@@ -165,6 +213,95 @@ function PelangganManagementPage() {
 
   usePageVisibility(fetchPelanggans);
 
+  const handleDownloadCSV = async () => {
+    if (!authState.isReady || !authState.business_id || loadingCSV) return;
+
+    setLoadingCSV(true);
+    try {
+      // Tentukan target branch_id (owner = null, lainnya = branch ID mereka)
+      const targetBranchId =
+        authState.role === "owner" ? null : authState.branch_id;
+
+      // Panggil RPC baru
+      const { data, error } = await supabase.rpc("get_customers_for_csv", {
+        p_search_term: searchTerm, // Gunakan searchTerm dari state
+        p_branch_id: targetBranchId,
+        p_business_id: authState.business_id,
+      });
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        toast.info(
+          "Tidak ada data pelanggan untuk di-download pada filter ini."
+        );
+        return;
+      }
+
+      // 1. Definisikan Header CSV (sesuai urutan RETURNS TABLE di SQL)
+      const headers = [
+        "Nama Pelanggan",
+        "Nomor HP",
+        "Alamat",
+        "Status Member",
+        "Poin",
+        "Cabang Terdaftar",
+        "Tanggal Daftar",
+      ];
+
+      // 2. Escape function (sama seperti sebelumnya)
+      const escapeCsvValue = (value) => {
+        if (value === null || typeof value === "undefined") return "";
+        const stringValue = String(value);
+        if (
+          stringValue.includes(",") ||
+          stringValue.includes('"') ||
+          stringValue.includes("\n")
+        ) {
+          return `"${stringValue.replace(/"/g, '""')}"`;
+        }
+        return stringValue;
+      };
+
+      // 3. Ubah Array of Objects jadi Array of Arrays
+      const csvData = data.map((row) => [
+        row.nama_pelanggan,
+        row.nomor_hp,
+        row.alamat,
+        row.status_member ? "Ya" : "Tidak", // Ubah boolean jadi teks
+        row.poin,
+        row.nama_cabang,
+        row.tanggal_daftar,
+      ]);
+
+      // 4. Gabungkan Header dan Data jadi string CSV (dengan BOM dan sep=,)
+      const headerString = headers.map(escapeCsvValue).join(",");
+      const dataString = csvData
+        .map((row) => row.map(escapeCsvValue).join(","))
+        .join("\n");
+      const csvContent =
+        "\ufeff" + "sep=,\n" + headerString + "\n" + dataString;
+
+      // 5. Buat Blob dan Link Download
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      // Nama file: Pelanggan_YYYY-MM-DD.csv
+      const today = new Date().toISOString().split("T")[0];
+      const fileName = `Pelanggan_${today}.csv`;
+      link.setAttribute("download", fileName);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Gagal download CSV Pelanggan:", error);
+      toast.error(error.message || "Gagal mengunduh data pelanggan.");
+    } finally {
+      setLoadingCSV(false);
+    }
+  };
+
   async function onSubmit(data) {
     try {
       if (authState.role === "owner" && !data.branch_id) {
@@ -210,10 +347,20 @@ function PelangganManagementPage() {
             const { error: updateError } = await supabase
               .from("customers")
               .update({
-                status: "aktif", // <-- AKTIFKAN LAGI
+                status: "aktif",
                 name: data.name,
                 address: data.address,
-                branch_id: targetBranchId, // Update branch-nya juga
+                branch_id: targetBranchId,
+                // VVV TAMBAH LOGIKA TIPE PELANGGAN VVV
+                tipe_pelanggan:
+                  authState.role === "owner" || authState.role === "admin"
+                    ? data.tipe_pelanggan || "reguler" // Ambil dari form jika owner/admin
+                    : "reguler", // Default 'reguler' jika kasir (meski case ini jarang)
+                // ^^^ SELESAI ^^^
+                default_service_id:
+                  data.tipe_pelanggan === "hotel" && data.default_service_id
+                    ? parseInt(data.default_service_id) // Ambil dari form jika hotel
+                    : null,
               })
               .eq("id", existingCustomer.id);
 
@@ -236,6 +383,14 @@ function PelangganManagementPage() {
           branch_id: targetBranchId,
           business_id: authState.business_id,
           status: "aktif", // <-- Pastikan statusnya aktif
+          tipe_pelanggan:
+            authState.role === "owner" || authState.role === "admin"
+              ? data.tipe_pelanggan || "reguler" // Ambil dari form jika owner/admin
+              : "reguler",
+          default_service_id:
+            data.tipe_pelanggan === "hotel" && data.default_service_id
+              ? parseInt(data.default_service_id) // Ambil dari form jika hotel
+              : null,
         });
         if (insertError) throw insertError;
         toast.success(`Pelanggan "${data.name}" berhasil dibuat!`);
@@ -328,7 +483,24 @@ function PelangganManagementPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Daftar Pelanggan</CardTitle>
+          <div className="flex justify-between items-center">
+            <CardTitle>Daftar Pelanggan</CardTitle>
+            {/* VVV TAMBAH TOMBOL DI SINI VVV */}
+            <Button
+              onClick={handleDownloadCSV} // <-- Fungsi yang akan kita buat
+              disabled={loading || loadingCSV || pelanggans.length === 0} // <-- Disable saat loading/kosong
+              size="sm"
+            >
+              {loadingCSV ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              Download CSV
+            </Button>
+            {/* ^^^ SELESAI TOMBOL ^^^ */}
+          </div>
+
           <CardDescription>
             Cari dan kelola semua pelanggan terdaftar di bisnismu.
           </CardDescription>
@@ -502,6 +674,74 @@ function PelangganManagementPage() {
                   </FormItem>
                 )}
               />
+              {(authState.role === "owner" || authState.role === "admin") && (
+                <FormField
+                  control={form.control}
+                  name="tipe_pelanggan" // Nama field baru
+                  defaultValue="reguler" // Defaultnya reguler
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Tipe Pelanggan</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih Tipe" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="reguler">Reguler</SelectItem>
+                          <SelectItem value="hotel">Hotel/Villa</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
+              {form.watch("tipe_pelanggan") === "hotel" && (
+                <FormField
+                  control={form.control}
+                  name="default_service_id" // Nama field baru
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Layanan Default (Menu Harga)</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        required // Wajib diisi kalau tipe hotel
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Pilih Layanan Menu untuk Klien ini" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {hotelServices.length > 0 ? (
+                            hotelServices.map((service) => (
+                              <SelectItem
+                                key={service.id}
+                                value={String(service.id)}
+                              >
+                                {service.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="disabled" disabled>
+                              Tidak ada layanan hotel ditemukan
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               {authState.role === "owner" && (
                 <FormField
                   control={form.control}

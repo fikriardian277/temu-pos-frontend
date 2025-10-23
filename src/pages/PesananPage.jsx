@@ -33,15 +33,25 @@ import {
   TableCell,
 } from "@/components/ui/Table.jsx";
 import { Badge } from "@/components/ui/Badge.jsx";
-import { Loader2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/Checkbox.jsx";
+import { Loader2, ClipboardList, Download } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/Dialog.jsx";
+import { Label } from "@/components/ui/Label.jsx";
 import EmptyState from "@/components/ui/EmptyState.jsx";
-import { ClipboardList } from "lucide-react";
 
 function PesananPage() {
   const { authState } = useAuth();
   const navigate = useNavigate();
   const [transaksis, setTransaksis] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingCSV, setLoadingCSV] = useState(false);
   const [error, setError] = useState("");
   const [filters, setFilters] = useState({
     search: "",
@@ -51,6 +61,11 @@ function PesananPage() {
     branch_id: "", // Nama kolom asli
   });
   const [cabangs, setCabangs] = useState([]);
+  const [selectedOrders, setSelectedOrders] = useState([]);
+  const [isBulkUpdateModalOpen, setIsBulkUpdateModalOpen] = useState(false); // <-- State Modal
+  const [bulkUpdateStatus, setBulkUpdateStatus] = useState("Lunas"); // <-- State Status Baru
+  const [bulkUpdateMethod, setBulkUpdateMethod] = useState(""); // <-- State Metode Baru
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false); // <-- State Loading Update
 
   // Ambil data cabang (sudah pake Supabase)
   useEffect(() => {
@@ -66,6 +81,66 @@ function PesananPage() {
       fetchCabangsForOwner();
     }
   }, [authState.role, authState.business_id]);
+
+  const handleSelectRow = (checked, orderId) => {
+    setSelectedOrders(
+      (prevSelected) =>
+        checked
+          ? [...prevSelected, orderId] // Tambah ID jika dicentang
+          : prevSelected.filter((id) => id !== orderId) // Hapus ID jika tidak dicentang
+    );
+  };
+
+  const handleSelectAll = (checked) => {
+    if (checked) {
+      // Pilih semua ID dari data transaksi yang tampil
+      setSelectedOrders(transaksis.map((tx) => tx.id));
+    } else {
+      // Kosongkan pilihan
+      setSelectedOrders([]);
+    }
+  };
+
+  const handleOpenBulkUpdateModal = () => {
+    setIsBulkUpdateModalOpen(true);
+    // Reset pilihan default
+    setBulkUpdateStatus("Lunas");
+    setBulkUpdateMethod("");
+  };
+
+  const handleConfirmBulkUpdate = async () => {
+    if (bulkUpdateStatus === "Lunas" && !bulkUpdateMethod) {
+      toast.error("Metode pembayaran wajib diisi jika status Lunas.");
+      return;
+    }
+
+    setIsBulkUpdating(true);
+    try {
+      const { data: updatedCount, error } = await supabase.rpc(
+        "bulk_update_order_payment",
+        {
+          p_order_ids: selectedOrders,
+          p_new_payment_status: bulkUpdateStatus,
+          p_new_payment_method: bulkUpdateMethod,
+          p_business_id: authState.business_id,
+        }
+      );
+
+      if (error) throw error;
+
+      toast.success(
+        `${updatedCount} pesanan berhasil diupdate status pembayarannya.`
+      );
+      setIsBulkUpdateModalOpen(false); // Tutup modal
+      setSelectedOrders([]); // Kosongkan pilihan
+      fetchPesanan(); // Refresh data tabel
+    } catch (err) {
+      console.error("Gagal bulk update:", err);
+      toast.error(err.message || "Gagal mengupdate status pesanan.");
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
 
   // "Mesin" Fetch Data (manggil "Koki" RPC)
   const fetchPesanan = useCallback(async () => {
@@ -101,6 +176,146 @@ function PesananPage() {
     }, 500);
     return () => clearTimeout(timer);
   }, [fetchPesanan]);
+
+  const handleDownloadCSV = async () => {
+    if (!authState.isReady || !authState.business_id || loadingCSV) return;
+
+    // Ambil tanggal hari ini jika filter kosong (biar nama file tetap ada tanggal)
+    const startDate =
+      filters.startDate || new Date().toISOString().split("T")[0];
+    const endDate = filters.endDate || new Date().toISOString().split("T")[0];
+
+    setLoadingCSV(true);
+    try {
+      // Tentukan target branch_id (sama persis kayak di fetchPesanan)
+      const targetBranchId =
+        authState.role !== "owner" && authState.branch_id
+          ? authState.branch_id
+          : filters.branch_id === "" || filters.branch_id === "all"
+          ? null
+          : parseInt(filters.branch_id);
+
+      // Panggil RPC get_raw_sales_data_for_csv
+      const { data, error } = await supabase.rpc("get_raw_sales_data_for_csv", {
+        p_start_date: startDate,
+        p_end_date: endDate,
+        p_target_branch_id: targetBranchId,
+        p_business_id: authState.business_id,
+        // Kita tambahin filter tambahan dari state 'filters' kalau perlu
+        // TAPI RPC ini belum support search/status, jadi kita filter data mentah saja
+      });
+
+      if (error) throw error;
+
+      // Filter tambahan di sisi client (karena RPC belum support semua filter)
+      let filteredData = data || [];
+      if (filters.search) {
+        const searchTermLower = filters.search.toLowerCase();
+        filteredData = filteredData.filter(
+          (row) =>
+            row.invoice_code?.toLowerCase().includes(searchTermLower) ||
+            row.nama_pelanggan?.toLowerCase().includes(searchTermLower) ||
+            row.nomor_hp_pelanggan?.toLowerCase().includes(searchTermLower)
+        );
+      }
+      if (filters.process_status) {
+        filteredData = filteredData.filter(
+          (row) => row.status_proses === filters.process_status
+        );
+      }
+
+      if (!filteredData || filteredData.length === 0) {
+        toast.info("Tidak ada data pesanan untuk di-download pada filter ini.");
+        return; // Keluar jika data kosong
+      }
+
+      // 1. Definisikan Header CSV (sesuai urutan RETURNS TABLE di SQL)
+      const headers = [
+        "Invoice",
+        "Tgl Diterima",
+        "Estimasi Selesai",
+        "Nama Pelanggan",
+        "No HP",
+        "Cabang",
+        "Paket",
+        "Jumlah",
+        "Satuan",
+        "Harga Satuan",
+        "Subtotal Item",
+        "Subtotal Order",
+        "Biaya Layanan",
+        "Diskon Poin",
+        "Grand Total",
+        "Status Bayar",
+        "Metode Bayar",
+        "Status Proses",
+        "Catatan",
+      ];
+
+      // 2. Escape function (sama seperti sebelumnya)
+      const escapeCsvValue = (value) => {
+        if (value === null || typeof value === "undefined") return "";
+        const stringValue = String(value);
+        if (
+          stringValue.includes(",") ||
+          stringValue.includes('"') ||
+          stringValue.includes("\n")
+        ) {
+          return `"${stringValue.replace(/"/g, '""')}"`;
+        }
+        return stringValue;
+      };
+
+      // 3. Ubah Array of Objects jadi Array of Arrays
+      const csvData = filteredData.map((row) => [
+        row.invoice_code,
+        row.tanggal_diterima,
+        row.estimasi_selesai,
+        row.nama_pelanggan,
+        row.nomor_hp_pelanggan,
+        row.nama_cabang,
+        row.nama_paket,
+        row.jumlah,
+        row.satuan,
+        row.harga_satuan,
+        row.subtotal_item,
+        row.subtotal_order,
+        row.biaya_layanan,
+        row.diskon_poin,
+        row.grand_total,
+        row.status_pembayaran,
+        row.metode_pembayaran,
+        row.status_proses,
+        row.catatan,
+      ]);
+
+      // 4. Gabungkan Header dan Data jadi string CSV (dengan BOM dan sep=,)
+      const headerString = headers.map(escapeCsvValue).join(",");
+      const dataString = csvData
+        .map((row) => row.map(escapeCsvValue).join(","))
+        .join("\n");
+      const csvContent =
+        "\ufeff" + "sep=,\n" + headerString + "\n" + dataString;
+
+      // 5. Buat Blob dan Link Download
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      // Nama file: Pesanan_YYYY-MM-DD_sd_YYYY-MM-DD.csv
+      const fileName = `Pesanan_${startDate}_sd_${endDate}.csv`;
+      link.setAttribute("download", fileName);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Gagal download CSV Pesanan:", error);
+      toast.error(error.message || "Gagal mengunduh data pesanan.");
+    } finally {
+      setLoadingCSV(false);
+    }
+  };
 
   usePageVisibility(fetchPesanan); // Pasang sensor anti-macet
 
@@ -180,8 +395,29 @@ function PesananPage() {
               </SelectContent>
             </Select>
           )}
+          <Button
+            onClick={handleDownloadCSV} // <-- Fungsi yang akan kita buat
+            disabled={loading || loadingCSV || transaksis.length === 0} // <-- Disable saat loading atau data kosong
+            size="sm" // Biar gak terlalu besar
+          >
+            {loadingCSV ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            Download CSV
+          </Button>
         </CardContent>
       </Card>
+
+      <div className="mb-4 flex justify-end">
+        <Button
+          onClick={handleOpenBulkUpdateModal} // <-- Fungsi yg akan dibuat
+          disabled={selectedOrders.length === 0 || loading} // Aktif jika ada yg dipilih & tdk loading
+        >
+          Update Status Pembayaran ({selectedOrders.length} Terpilih)
+        </Button>
+      </div>
 
       <Card>
         <CardContent className="p-0">
@@ -189,6 +425,16 @@ function PesananPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[50px]">
+                    <Checkbox
+                      checked={
+                        selectedOrders.length === transaksis.length &&
+                        transaksis.length > 0
+                      }
+                      onCheckedChange={(checked) => handleSelectAll(checked)}
+                      aria-label="Pilih semua baris"
+                    />
+                  </TableHead>
                   <TableHead>Invoice</TableHead>
                   {authState.role === "owner" && <TableHead>Cabang</TableHead>}
                   <TableHead>Pelanggan</TableHead>
@@ -218,6 +464,15 @@ function PesananPage() {
                 ) : transaksis.length > 0 ? (
                   transaksis.map((tx) => (
                     <TableRow key={tx.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedOrders.includes(tx.id)}
+                          onCheckedChange={(checked) =>
+                            handleSelectRow(checked, tx.id)
+                          }
+                          aria-label={`Pilih baris ${tx.invoice_code}`}
+                        />
+                      </TableCell>
                       <TableCell className="font-mono font-semibold">
                         {tx.invoice_code}
                       </TableCell>
@@ -276,6 +531,67 @@ function PesananPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={isBulkUpdateModalOpen}
+        onOpenChange={setIsBulkUpdateModalOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Update Status Pembayaran ({selectedOrders.length} Pesanan)
+            </DialogTitle>
+            <DialogDescription>
+              Pilih status pembayaran baru dan metode pembayaran (jika Lunas)
+              untuk pesanan yang dipilih.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <div>
+              <Label htmlFor="bulk-status">Status Pembayaran Baru</Label>
+              <Select
+                value={bulkUpdateStatus}
+                onValueChange={setBulkUpdateStatus}
+              >
+                <SelectTrigger id="bulk-status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Lunas">Lunas</SelectItem>
+                  <SelectItem value="Belum Lunas">Belum Lunas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {bulkUpdateStatus === "Lunas" && ( // Muncul hanya jika Lunas
+              <div>
+                <Label htmlFor="bulk-method">Metode Pembayaran</Label>
+                <Input
+                  id="bulk-method"
+                  value={bulkUpdateMethod}
+                  onChange={(e) => setBulkUpdateMethod(e.target.value)}
+                  placeholder="Contoh: Transfer Bank, Tunai, Invoice #123"
+                  required
+                />
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsBulkUpdateModalOpen(false)}
+              disabled={isBulkUpdating}
+            >
+              Batal
+            </Button>
+            <Button onClick={handleConfirmBulkUpdate} disabled={isBulkUpdating}>
+              {isBulkUpdating && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Konfirmasi Update
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

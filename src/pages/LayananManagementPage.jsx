@@ -4,7 +4,14 @@ import React, { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/supabaseClient";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { Plus, Trash2, Edit, MoreVertical, Loader2 } from "lucide-react";
+import {
+  Plus,
+  Trash2,
+  Edit,
+  MoreVertical,
+  Loader2,
+  Download,
+} from "lucide-react";
 import { usePageVisibility } from "@/lib/usePageVisibility.js";
 
 // Impor semua komponen dari shadcn/ui
@@ -90,6 +97,7 @@ function LayananManagementPage() {
   const { authState } = useAuth();
   const [categories, setCategories] = useState([]); // <-- Ganti nama state biar jelas
   const [loading, setLoading] = useState(true);
+  const [loadingCSV, setLoadingCSV] = useState(false);
   const [modalState, setModalState] = useState({
     type: null,
     data: null,
@@ -133,6 +141,89 @@ function LayananManagementPage() {
 
   // Pasang sensor anti-macet
   usePageVisibility(fetchData);
+
+  const handleDownloadCSV = async () => {
+    if (!authState.isReady || !authState.business_id || loadingCSV) return;
+
+    setLoadingCSV(true);
+    try {
+      // Panggil RPC baru
+      const { data, error } = await supabase.rpc("get_services_for_csv", {
+        p_business_id: authState.business_id,
+      });
+
+      if (error) throw error;
+      if (!data || data.length === 0) {
+        toast.info("Tidak ada data layanan/paket untuk di-download.");
+        return; // Keluar jika data kosong
+      }
+
+      // 1. Definisikan Header CSV (sesuai urutan RETURNS TABLE di SQL)
+      const headers = [
+        "Kategori",
+        "Layanan",
+        "Nama Paket",
+        "Harga (Rp)",
+        "Satuan",
+        "Estimasi Waktu",
+        "Estimasi Jam",
+        "Minimal Order",
+      ];
+
+      // 2. Escape function (sama seperti sebelumnya)
+      const escapeCsvValue = (value) => {
+        if (value === null || typeof value === "undefined") return "";
+        const stringValue = String(value);
+        if (
+          stringValue.includes(",") ||
+          stringValue.includes('"') ||
+          stringValue.includes("\n")
+        ) {
+          return `"${stringValue.replace(/"/g, '""')}"`;
+        }
+        return stringValue;
+      };
+
+      // 3. Ubah Array of Objects jadi Array of Arrays
+      const csvData = data.map((row) => [
+        row.nama_kategori,
+        row.nama_layanan,
+        row.nama_paket,
+        row.harga,
+        row.satuan,
+        row.estimasi_waktu,
+        row.estimasi_jam,
+        row.minimal_order,
+      ]);
+
+      // 4. Gabungkan Header dan Data jadi string CSV (dengan BOM dan sep=,)
+      const headerString = headers.map(escapeCsvValue).join(",");
+      const dataString = csvData
+        .map((row) => row.map(escapeCsvValue).join(","))
+        .join("\n");
+      const csvContent =
+        "\ufeff" + "sep=,\n" + headerString + "\n" + dataString;
+
+      // 5. Buat Blob dan Link Download
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      // Nama file: Layanan_YYYY-MM-DD.csv
+      const today = new Date().toISOString().split("T")[0];
+      const fileName = `Layanan_${today}.csv`;
+      link.setAttribute("download", fileName);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Gagal download CSV Layanan:", error);
+      toast.error(error.message || "Gagal mengunduh data layanan.");
+    } finally {
+      setLoadingCSV(false);
+    }
+  };
 
   const handleOpenModal = (type, data = {}) => {
     setModalState({ type, data, isOpen: true });
@@ -252,9 +343,23 @@ function LayananManagementPage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Manajemen Layanan</h1>
-        <Button onClick={() => handleOpenModal("new_kategori")}>
-          <Plus className="mr-2 h-4 w-4" /> Tambah Kategori
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            onClick={handleDownloadCSV} // <-- Fungsi yg akan dibuat
+            disabled={loading || loadingCSV || categories.length === 0}
+            variant="outline" // Biar beda dari tombol utama
+          >
+            {loadingCSV ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="mr-2 h-4 w-4" />
+            )}
+            Download CSV
+          </Button>
+          <Button onClick={() => handleOpenModal("new_kategori")}>
+            <Plus className="mr-2 h-4 w-4" /> Tambah Kategori
+          </Button>
+        </div>
       </div>
 
       <div className="space-y-6">

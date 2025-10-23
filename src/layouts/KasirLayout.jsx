@@ -55,6 +55,8 @@ function KasirLayout() {
   const navItems = menuConfig.filter(
     (item) => !item.isHeader && item.roles.includes("kasir")
   );
+  console.log("NAV ITEMS UNTUK KASIR:", navItems);
+  console.log("ROLE SAAT INI:", authState.role);
   const kasirButton = navItems.find((item) => item.to === "/kasir");
 
   const handleLogout = () => {

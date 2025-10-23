@@ -18,7 +18,7 @@ import {
   Legend,
 } from "recharts";
 
-import { Loader2 } from "lucide-react";
+import { Loader2, Download } from "lucide-react";
 
 // Impor komponen-komponen dari shadcn/ui
 import {
@@ -45,6 +45,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/Select.jsx";
+import { Button } from "@/components/ui/Button.jsx";
 
 // Komponen kartu statistik ringkas (tidak berubah)
 const StatCard = ({ title, value, subtext }) => (
@@ -65,6 +66,7 @@ function LaporanPage() {
   const { authState } = useAuth();
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [loadingCSV, setLoadingCSV] = useState(false);
   const [cabangList, setCabangList] = useState([]);
 
   // State tunggal untuk semua filter
@@ -161,6 +163,134 @@ function LaporanPage() {
     authState.branch_id,
   ]); // <-- Tambah dependency
 
+  const handleDownloadCSV = () => {
+    // Pastikan data laporan sudah ada
+    if (!reportData || !reportData.summary || loadingCSV) {
+      toast.info("Data laporan belum siap atau sedang dimuat.");
+      return;
+    }
+
+    setLoadingCSV(true); // Mulai loading
+
+    try {
+      const summary = reportData.summary;
+      const dailyData = reportData.dailyData; // Data grafik harian
+
+      // Helper escape function (sama seperti sebelumnya)
+      const escapeCsvValue = (value) => {
+        if (value === null || typeof value === "undefined") return "";
+        const stringValue = String(value);
+        if (
+          stringValue.includes(",") ||
+          stringValue.includes('"') ||
+          stringValue.includes("\n")
+        ) {
+          return `"${stringValue.replace(/"/g, '""')}"`;
+        }
+        return stringValue;
+      };
+
+      // Buat konten CSV baris per baris
+      let csvContent = "\ufeff" + "sep=,\n"; // Tambah BOM dan separator hint
+
+      // --- Bagian 1: Info Filter ---
+      csvContent += "Filter Laporan\n";
+      csvContent += `Tanggal Mulai,${escapeCsvValue(filters.startDate)}\n`;
+      csvContent += `Tanggal Selesai,${escapeCsvValue(filters.endDate)}\n`;
+      const cabangName =
+        filters.id_cabang === "semua"
+          ? "Semua Cabang"
+          : cabangList.find((c) => String(c.id) === filters.id_cabang)?.name ||
+            filters.id_cabang;
+      csvContent += `Cabang,${escapeCsvValue(cabangName)}\n\n`;
+
+      // --- Bagian 2: Ringkasan Utama ---
+      csvContent += "Ringkasan Utama\n";
+      csvContent += "Metrik,Nilai\n"; // Header untuk bagian ini
+      csvContent += `Total Pendapatan,Rp ${escapeCsvValue(
+        summary.totalRevenue?.toLocaleString("id-ID") || 0
+      )}\n`;
+      csvContent += `Jumlah Transaksi,${escapeCsvValue(
+        summary.totalTransactions || 0
+      )}\n`;
+      csvContent += `Pendapatan Tertinggi (${
+        summary.highestDay?.tanggal || "-"
+      }),Rp ${escapeCsvValue(
+        summary.highestDay?.pendapatan?.toLocaleString("id-ID") || 0
+      )}\n`;
+      csvContent += `Pendapatan Terendah (${
+        summary.lowestDay?.tanggal || "-"
+      }),Rp ${escapeCsvValue(
+        summary.lowestDay?.pendapatan?.toLocaleString("id-ID") || 0
+      )}\n\n`;
+
+      // --- Bagian 3: Metode Pembayaran ---
+      if (summary.paymentMethods && summary.paymentMethods.length > 0) {
+        csvContent += "Metode Pembayaran\n";
+        csvContent += "Metode,Jumlah Transaksi\n"; // Header
+        summary.paymentMethods.forEach((method) => {
+          csvContent += `${escapeCsvValue(
+            method.metode_pembayaran
+          )},${escapeCsvValue(method.jumlah)}\n`;
+        });
+        csvContent += "\n";
+      }
+
+      // --- Bagian 4: Top Produk ---
+      if (summary.topProduk && summary.topProduk.length > 0) {
+        csvContent += "Top 5 Produk Terlaris\n";
+        csvContent += "Nama Paket,Jumlah Terjual,Satuan\n"; // Header
+        summary.topProduk.forEach((produk) => {
+          csvContent += `${escapeCsvValue(produk.namaPaket)},${escapeCsvValue(
+            produk.jumlah
+          )},${escapeCsvValue(produk.satuan)}\n`;
+        });
+        csvContent += "\n";
+      }
+
+      // --- Bagian 5: Top Pelanggan ---
+      if (summary.topCustomers && summary.topCustomers.length > 0) {
+        csvContent += "Top 5 Pelanggan Teraktif\n";
+        csvContent += "Nama Pelanggan,Jumlah Transaksi\n"; // Header
+        summary.topCustomers.forEach((customer) => {
+          csvContent += `${escapeCsvValue(
+            customer.namaPelanggan
+          )},${escapeCsvValue(customer.jumlahTransaksi)}\n`;
+        });
+        csvContent += "\n";
+      }
+
+      // --- Bagian 6: Data Pendapatan Harian (Opsional, tapi bagus buat grafik) ---
+      if (dailyData && dailyData.length > 0) {
+        csvContent += "Data Pendapatan Harian\n";
+        csvContent += "Tanggal (DD-MM),Pendapatan (Rp)\n"; // Header
+        dailyData.forEach((day) => {
+          csvContent += `${escapeCsvValue(day.tanggal)},${escapeCsvValue(
+            day.pendapatan
+          )}\n`;
+        });
+        csvContent += "\n";
+      }
+
+      // --- Buat Blob dan Link Download (Sama seperti sebelumnya) ---
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      const fileName = `Ringkasan_Laporan_${filters.startDate}_sd_${filters.endDate}.csv`; // Ganti nama file
+      link.setAttribute("download", fileName);
+      link.style.visibility = "hidden";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error("Gagal download CSV Laporan:", error);
+      toast.error(error.message || "Gagal mengunduh ringkasan laporan.");
+    } finally {
+      setLoadingCSV(false); // Selesai loading
+    }
+  };
+
   // Handler untuk mengubah filter tanggal
   const handleFilterChange = (e) => {
     setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -234,6 +364,19 @@ function LaporanPage() {
                 </Select>
               </div>
             )}
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button
+              onClick={handleDownloadCSV} // <-- Fungsi yang akan kita buat
+              disabled={loading || loadingCSV || !reportData} // <-- Disable saat loading atau data kosong
+            >
+              {loadingCSV ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Download className="mr-2 h-4 w-4" />
+              )}
+              Download CSV
+            </Button>
           </div>
         </CardContent>
       </Card>

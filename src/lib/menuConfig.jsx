@@ -39,6 +39,13 @@ export const menuConfig = [
     roles: ["kasir"],
   },
 
+  {
+    to: "/laundry-hotel",
+    label: "Input Laundry Hotel", // Atau 'Entri Hotel'
+    icon: <ClipboardList size={18} />, // Ganti ikon kalau mau
+    roles: ["kasir"], // Hanya Kasir
+  },
+
   // KATEGORI: MANAJEMEN
   {
     key: "manajemen",

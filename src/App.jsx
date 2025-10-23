@@ -29,6 +29,7 @@ import LaporanPage from "./pages/LaporanPage.jsx";
 import PesananPage from "./pages/PesananPage.jsx";
 import PengaturanUsahaPage from "./pages/PengaturanUsahaPage.jsx";
 import RiwayatDetailPage from "./pages/RiwayatDetailPage.jsx";
+import HotelLaundryPage from "./pages/HotelLaundryPage";
 
 function ProtectedLayout() {
   const { authState } = useAuth();
@@ -86,6 +87,7 @@ const router = createBrowserRouter([
       { path: "laporan-penjualan", element: <LaporanPage /> },
       { path: "pesanan", element: <PesananPage /> },
       { path: "pengaturan-usaha", element: <PengaturanUsahaPage /> },
+      { path: "laundry-hotel", element: <HotelLaundryPage /> },
     ],
   },
 ]);
