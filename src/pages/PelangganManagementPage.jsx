@@ -599,9 +599,18 @@ function PelangganManagementPage() {
                         {p.address || "-"}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={p.is_member ? "default" : "secondary"}>
-                          {p.is_member ? "Member" : "Biasa"}
-                        </Badge>
+                        {p.tipe_pelanggan === "hotel" ? (
+                          // --- Display for Hotel Clients ---
+                          <Badge variant="outline">Hotel/Villa</Badge> // Or any text/style you prefer
+                        ) : (
+                          // --- Display for Regular Clients ---
+                          <Badge
+                            variant={p.is_member ? "default" : "secondary"}
+                          >
+                            {p.is_member ? "Member" : "Reguler"}{" "}
+                            {/* Changed "Biasa" to "Reguler" */}
+                          </Badge>
+                        )}
                       </TableCell>
                       {authState.role === "owner" && (
                         <TableCell>{p.branches?.name || "N/A"}</TableCell>

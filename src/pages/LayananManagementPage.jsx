@@ -226,11 +226,36 @@ function LayananManagementPage() {
   };
 
   const handleOpenModal = (type, data = {}) => {
-    setModalState({ type, data, isOpen: true });
-    setFormData(data);
+    setModalState({ type, data, isOpen: true }); // Simpan data induk (misal ID-nya) di modalState
+
+    // Reset formData berdasarkan tipe aksi
+    if (type.startsWith("new_")) {
+      // --- Kalau TAMBAH BARU ---
+      if (type === "new_kategori" || type === "new_layanan") {
+        setFormData({ name: "" }); // Cuma perlu reset nama
+      } else if (type === "new_paket") {
+        setFormData({
+          // Reset semua field paket
+          name: "",
+          price: "",
+          unit: "",
+          time_estimation: "",
+          min_order: "",
+          estimation_in_hours: "",
+        });
+      } else {
+        setFormData({}); // Default reset
+      }
+    } else {
+      // --- Kalau EDIT ---
+      // Isi formData dengan data item yang mau diedit (udah bener)
+      setFormData(data);
+    }
   };
-  const handleCloseModal = () =>
+  const handleCloseModal = () => {
     setModalState({ type: null, data: null, isOpen: false });
+    setFormData({}); // <-- TAMBAH INI biar form selalu bersih pas ditutup
+  };
   const handleFormChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
 

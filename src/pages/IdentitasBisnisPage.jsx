@@ -122,6 +122,7 @@ function IdentitasBisnisPage() {
 
       if (error) throw error;
       setIdentitasList(data || []);
+      console.log("fetchIdentitas selesai, data baru:", data);
     } catch (err) {
       toast.error("Gagal mengambil data identitas bisnis.");
       console.error(err);
@@ -139,7 +140,7 @@ function IdentitasBisnisPage() {
   // --- Modal & Form Handling ---
   const handleOpenModal = (identitas = null) => {
     setEditingIdentitas(identitas); // Set data yg diedit (null jika tambah)
-    form.reset(identitas || formSchema.parse({})); // Reset form (isi data jika edit)
+    form.reset(identitas);
     setIsModalOpen(true);
   };
 
@@ -153,39 +154,54 @@ function IdentitasBisnisPage() {
   async function onSubmit(data) {
     try {
       let error;
+      // Kita tetep minta data balikan biar lebih pasti (meski gak dipake buat update manual)
+      let savedData = null;
       const dataToSubmit = {
         ...data,
-        business_id: authState.business_id, // Selalu sertakan business_id
+        business_id: authState.business_id,
       };
 
       if (editingIdentitas) {
-        // --- Proses Update ---
-        const { error: updateError } = await supabase
+        // --- Proses Update (Minta data balikan) ---
+        const { data: updatedData, error: updateError } = await supabase
           .from("identitas_bisnis")
           .update(dataToSubmit)
           .eq("id", editingIdentitas.id)
-          .eq("business_id", authState.business_id); // Keamanan
+          .eq("business_id", authState.business_id)
+          .select() // <-- Tetap minta balikan
+          .single();
         error = updateError;
+        savedData = updatedData;
       } else {
-        // --- Proses Insert ---
-        const { error: insertError } = await supabase
+        // --- Proses Insert (Minta data balikan) ---
+        const { data: insertedData, error: insertError } = await supabase
           .from("identitas_bisnis")
-          .insert(dataToSubmit);
+          .insert(dataToSubmit)
+          .select() // <-- Tetap minta balikan
+          .single();
         error = insertError;
+        savedData = insertedData;
       }
 
-      if (error) throw error;
+      if (error) throw error; // Kalau error, lempar sebelum lanjut
+
+      // --- Logika Setelah Sukses ---
       toast.success(
         `Identitas bisnis berhasil ${editingIdentitas ? "diupdate" : "dibuat"}!`
       );
+
+      // 1. Panggil fetchIdentitas DULU (await biar ditunggu selesai)
+      await fetchIdentitas();
+
+      // 2. BARU tutup modal
       handleCloseModal();
-      fetchIdentitas(); // Refresh data
     } catch (err) {
       toast.error(
         err.message ||
           `Gagal ${editingIdentitas ? "mengupdate" : "membuat"} identitas.`
       );
     }
+    // 'finally' isSubmitting udah diurus react-hook-form
   }
 
   // --- Delete ---
