@@ -40,6 +40,8 @@ import {
   ShoppingCart,
   Users,
   PlusCircle,
+  CheckCircle, // <-- TAMBAH INI
+  AlertCircle,
 } from "lucide-react";
 
 // Komponen kartu statistik (reusable)
@@ -61,17 +63,27 @@ const OwnerDashboard = ({ data }) => {
   const navigate = useNavigate();
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Pendapatan Hari Ini"
-          value={`Rp ${data.stats.revenueToday.toLocaleString("id-ID")}`}
-          icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
-        />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <StatCard
           title="Transaksi Hari Ini"
           value={data.stats.transactionsToday}
           icon={<ShoppingCart className="h-4 w-4 text-muted-foreground" />}
         />
+        {/* VVV Stat Card Lunas VVV */}
+        <StatCard
+          title="Total Lunas (Hari Ini)"
+          value={`Rp ${data.stats.totalLunasHariIni.toLocaleString("id-ID")}`}
+          icon={<CheckCircle className="h-4 w-4 text-green-500" />} // Ganti ikon
+        />
+        {/* VVV Stat Card Belum Lunas VVV */}
+        <StatCard
+          title="Total Belum Lunas (Hari Ini)"
+          value={`Rp ${data.stats.totalBelumLunasHariIni.toLocaleString(
+            "id-ID"
+          )}`}
+          icon={<AlertCircle className="h-4 w-4 text-yellow-500" />} // Ganti ikon
+        />
+        {/* --- Pindahkan kartu lain ke bawah jika perlu --- */}
         <StatCard
           title="Total Order Aktif"
           value={data.stats.activeOrders}
@@ -83,6 +95,8 @@ const OwnerDashboard = ({ data }) => {
           value={`+${data.stats.newCustomersThisMonth}`}
           icon={<Users className="h-4 w-4 text-muted-foreground" />}
         />
+        {/* Kartu Pendapatan Hari Ini bisa dihapus karena sudah diwakili Total Lunas */}
+        {/* <StatCard title="Pendapatan Hari Ini" ... /> */}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
@@ -148,22 +162,16 @@ const OwnerDashboard = ({ data }) => {
               </TableHeader>
               <TableBody>
                 {data.recentTransactions?.map((tx) => (
-                  <TableRow
-                    key={tx.id}
-                    onClick={() => navigate(`/riwayat/${tx.kode_invoice}`)}
-                    className="cursor-pointer"
-                  >
+                  <TableRow key={tx.id}>
                     <TableCell>
-                      {/* [FIX] Tambahkan ?. untuk Pelanggan */}
                       <div className="font-medium">
-                        {tx.Pelanggan?.nama || "N/A"}
+                        {tx.customer_name || "N/A"}{" "}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {tx.kode_invoice}
+                        {tx.invoice_code} {/* <-- Pake invoice_code dari RPC */}
                       </div>
                     </TableCell>
-                    {/* [FIX] Tambahkan ?. untuk Cabang */}
-                    <TableCell>{tx.Cabang?.nama_cabang || "N/A"}</TableCell>
+                    <TableCell>{tx.branch_name || "N/A"}</TableCell>
                     <TableCell className="text-right">
                       Rp {tx.grand_total.toLocaleString("id-ID")}
                     </TableCell>
@@ -185,20 +193,32 @@ const KasirDashboard = ({ data }) => {
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-3">
         <StatCard
-          title="Pendapatan Cabang (Hari Ini)"
-          value={`Rp ${data.stats.revenueToday.toLocaleString("id-ID")}`}
-          icon={<DollarSign className="h-4 w-4 text-muted-foreground" />}
-        />
-        <StatCard
-          title="Transaksi Cabang (Hari Ini)"
+          title="Transaksi Cabang (Hari Ini)" // Label diubah sedikit
           value={data.stats.transactionsToday}
           icon={<ShoppingCart className="h-4 w-4 text-muted-foreground" />}
         />
+        {/* VVV Stat Card Lunas VVV */}
+        <StatCard
+          title="Total Lunas Cabang (Hari Ini)" // Label diubah sedikit
+          value={`Rp ${data.stats.totalLunasHariIni.toLocaleString("id-ID")}`}
+          icon={<CheckCircle className="h-4 w-4 text-green-500" />}
+        />
+        {/* VVV Stat Card Belum Lunas VVV */}
+        <StatCard
+          title="Total Belum Lunas Cabang (Hari Ini)" // Label diubah sedikit
+          value={`Rp ${data.stats.totalBelumLunasHariIni.toLocaleString(
+            "id-ID"
+          )}`}
+          icon={<AlertCircle className="h-4 w-4 text-yellow-500" />}
+        />
+        {/* Kartu Order Aktif bisa tetap di sini atau dipindah */}
         <StatCard
           title="Order Aktif di Cabang Ini"
           value={data.stats.activeOrders}
           icon={<ArrowUpRight className="h-4 w-4 text-muted-foreground" />}
         />
+        {/* Kartu Pendapatan bisa dihapus */}
+        {/* <StatCard title="Pendapatan Cabang (Hari Ini)" ... /> */}
       </div>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -233,16 +253,15 @@ const KasirDashboard = ({ data }) => {
                 {data.recentTransactions?.map((tx) => (
                   <TableRow
                     key={tx.id}
-                    onClick={() => navigate(`/riwayat/${tx.kode_invoice}`)}
+                    onClick={() => navigate(`/riwayat/${tx.invoice_code}`)} // <-- Benerin
                     className="cursor-pointer"
                   >
                     <TableCell>
-                      {/* [FIX] Tambahkan ?. untuk Pelanggan */}
                       <div className="font-medium">
-                        {tx.Pelanggan?.nama || "N/A"}
+                        {tx.customer_name || "N/A"}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {tx.kode_invoice}
+                        {tx.invoice_code} {/* <-- Benerin */}
                       </div>
                     </TableCell>
                     <TableCell>
