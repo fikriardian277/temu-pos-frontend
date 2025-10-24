@@ -147,7 +147,7 @@ function IdentitasBisnisPage() {
   const handleCloseModal = () => {
     setIsModalOpen(false);
     setEditingIdentitas(null);
-    form.reset(formSchema.parse({})); // Reset ke default kosong
+    form.reset();
   };
 
   // --- Create / Update ---
