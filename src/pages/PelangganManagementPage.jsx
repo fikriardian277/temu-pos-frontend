@@ -93,6 +93,7 @@ const formSchema = z.object({
   branch_id: z.string().optional(),
   tipe_pelanggan: z.enum(["reguler", "hotel"]).optional(), // <-- TAMBAH INI
   default_service_id: z.string().optional(),
+  id_identitas_bisnis: z.string().optional(),
 });
 
 function PelangganManagementPage() {
@@ -107,6 +108,7 @@ function PelangganManagementPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingPelanggan, setEditingPelanggan] = useState(null);
   const [hotelServices, setHotelServices] = useState([]);
+  const [businessIdentities, setBusinessIdentities] = useState([]);
 
   const form = useForm({
     resolver: zodResolver(formSchema),
@@ -153,6 +155,33 @@ function PelangganManagementPage() {
     if (authState.isReady) {
       // Panggil setelah auth siap
       fetchHotelServices();
+    }
+  }, [authState.isReady, authState.role, authState.business_id]);
+
+  useEffect(() => {
+    const fetchBusinessIdentities = async () => {
+      // Hanya Owner/Admin yang perlu fetch ini untuk form
+      if (
+        (authState.role === "owner" || authState.role === "admin") &&
+        authState.business_id
+      ) {
+        try {
+          const { data, error } = await supabase
+            .from("identitas_bisnis")
+            .select("id, nama_identitas") // Ambil ID dan nama internal
+            .eq("business_id", authState.business_id)
+            .order("nama_identitas", { ascending: true });
+
+          if (error) throw error;
+          setBusinessIdentities(data || []);
+        } catch (error) {
+          console.error("Gagal fetch identitas bisnis:", error);
+          // Tidak perlu toast error di sini, fieldnya opsional/kondisional
+        }
+      }
+    };
+    if (authState.isReady) {
+      fetchBusinessIdentities();
     }
   }, [authState.isReady, authState.role, authState.business_id]);
 
@@ -361,6 +390,10 @@ function PelangganManagementPage() {
                   data.tipe_pelanggan === "hotel" && data.default_service_id
                     ? parseInt(data.default_service_id) // Ambil dari form jika hotel
                     : null,
+                id_identitas_bisnis:
+                  data.tipe_pelanggan === "hotel" && data.id_identitas_bisnis
+                    ? parseInt(data.id_identitas_bisnis) // Ambil dari form jika dipilih
+                    : null,
               })
               .eq("id", existingCustomer.id);
 
@@ -391,6 +424,10 @@ function PelangganManagementPage() {
             data.tipe_pelanggan === "hotel" && data.default_service_id
               ? parseInt(data.default_service_id) // Ambil dari form jika hotel
               : null,
+          id_identitas_bisnis:
+            data.tipe_pelanggan === "hotel" && data.id_identitas_bisnis
+              ? parseInt(data.id_identitas_bisnis) // Ambil dari form jika dipilih
+              : null,
         });
         if (insertError) throw insertError;
         toast.success(`Pelanggan "${data.name}" berhasil dibuat!`);
@@ -417,6 +454,8 @@ function PelangganManagementPage() {
           name: editingPelanggan.name,
           phone_number: editingPelanggan.phone_number,
           address: editingPelanggan.address,
+          id_identitas_bisnis: editingPelanggan.id_identitas_bisnis,
+          default_service_id: editingPelanggan.default_service_id,
         })
         .eq("id", editingPelanggan.id)
         .eq("business_id", authState.business_id); // <-- BENTENG LAPIS KEDUA
@@ -435,6 +474,22 @@ function PelangganManagementPage() {
     setEditingPelanggan((prev) => ({
       ...prev,
       [name]: value,
+    }));
+  };
+
+  const handleEditIdentitasChange = (value) => {
+    setEditingPelanggan((prev) => ({
+      ...prev,
+      // Simpan sebagai number (atau null jika string kosong)
+      id_identitas_bisnis: value ? parseInt(value) : null,
+    }));
+  };
+
+  const handleEditServiceChange = (value) => {
+    setEditingPelanggan((prev) => ({
+      ...prev,
+      // Simpan sebagai number (atau null jika string kosong, tapi ini required jadi harusnya selalu ada)
+      default_service_id: value ? parseInt(value) : null,
     }));
   };
 
@@ -742,6 +797,48 @@ function PelangganManagementPage() {
                 />
               )}
 
+              {form.watch("tipe_pelanggan") === "hotel" && (
+                <FormField
+                  control={form.control}
+                  name="id_identitas_bisnis" // Nama kolom di tabel customers
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Identitas Struk (Opsional)</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        // Tidak required, bisa pilih default nanti
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Gunakan Identitas Default Usaha" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {/* Opsi dari state */}
+                          {businessIdentities.length > 0 ? (
+                            businessIdentities.map((identity) => (
+                              <SelectItem
+                                key={identity.id}
+                                value={String(identity.id)}
+                              >
+                                {identity.nama_identitas}{" "}
+                                {/* Tampilkan nama internal */}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="disabled" disabled>
+                              Tidak ada identitas bisnis lain
+                            </SelectItem>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+
               {authState.role === "owner" && (
                 <FormField
                   control={form.control}
@@ -836,6 +933,73 @@ function PelangganManagementPage() {
                   placeholder="Alamat lengkap..."
                 />
               </div>
+
+              {editingPelanggan?.tipe_pelanggan === "hotel" && ( // Muncul hanya jika tipe=hotel
+                <div>
+                  <Label htmlFor="edit-service">
+                    Layanan Default (Menu Harga)
+                  </Label>
+                  <Select
+                    // Ambil dari state, convert ke string, default string kosong
+                    value={String(editingPelanggan?.default_service_id || "")}
+                    onValueChange={(value) => handleEditServiceChange(value)} // Fungsi baru
+                    required // Layanan default wajib diisi untuk hotel
+                  >
+                    <SelectTrigger id="edit-service">
+                      <SelectValue placeholder="Pilih Layanan Menu untuk Klien ini" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {/* Jangan ada opsi "-- Pilih --" karena wajib */}
+                      {hotelServices.length > 0 ? (
+                        hotelServices.map((service) => (
+                          <SelectItem
+                            key={service.id}
+                            value={String(service.id)}
+                          >
+                            {service.name}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="disabled" disabled>
+                          Tidak ada layanan hotel ditemukan
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {editingPelanggan?.tipe_pelanggan === "hotel" && (
+                <div>
+                  <Label htmlFor="edit-identitas">
+                    Identitas Struk (Opsional)
+                  </Label>
+                  <Select
+                    value={String(editingPelanggan?.id_identitas_bisnis || "")} // Ambil dari state, convert ke string
+                    onValueChange={(value) => handleEditIdentitasChange(value)} // Fungsi baru
+                  >
+                    <SelectTrigger id="edit-identitas">
+                      <SelectValue placeholder="Gunakan Identitas Default Usaha" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {businessIdentities.length > 0 ? (
+                        businessIdentities.map((identity) => (
+                          <SelectItem
+                            key={identity.id}
+                            value={String(identity.id)}
+                          >
+                            {identity.nama_identitas}
+                          </SelectItem>
+                        ))
+                      ) : (
+                        <SelectItem value="disabled" disabled>
+                          Tidak ada identitas lain
+                        </SelectItem>
+                      )}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <DialogFooter>
                 <Button
                   type="button"

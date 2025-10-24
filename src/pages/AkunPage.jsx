@@ -4,7 +4,14 @@ import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabaseClient"; // <-- GANTI KE SUPABASE
 import { useAuth } from "@/context/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
-import { KeyRound, User, History, LogOut, Loader2 } from "lucide-react"; // <-- Tambah Loader2
+import {
+  KeyRound,
+  User,
+  History,
+  LogOut,
+  Loader2,
+  ClipboardList,
+} from "lucide-react"; // <-- Tambah Loader2
 import { toast } from "sonner"; // <-- Pake toast biar konsisten
 
 // Impor komponen-komponen dari shadcn/ui
@@ -262,6 +269,18 @@ function AkunPage() {
                 <div className="flex items-center">
                   <History className="w-4 h-4 mr-3" />
                   <span>Lihat Riwayat Transaksi</span>
+                </div>
+              </Link>
+            </CardContent>
+            <CardContent className="p-4">
+              <Link
+                to="/laundry-hotel"
+                className="flex items-center justify-between text-sm font-medium hover:text-primary border-t pt-3" // <-- Tambah border-t & pt-3
+              >
+                <div className="flex items-center">
+                  <ClipboardList className="w-4 h-4 mr-3" />{" "}
+                  {/* Ganti ikon jika mau */}
+                  <span>Input Laundry Hotel</span>
                 </div>
               </Link>
             </CardContent>

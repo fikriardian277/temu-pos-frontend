@@ -51,7 +51,16 @@ export default function RiwayatDetailPage() {
     try {
       let query = supabase
         .from("orders")
-        .select("*, customers(*), branches(*), order_items(*, packages(*))")
+        .select(
+          `
+          *, 
+          tipe_order, 
+          pickup_date, 
+          customers!inner(id, name, tipe_pelanggan, id_identitas_bisnis), 
+          branches(id, name, address, phone_number), 
+          order_items(*, packages(*))
+        `
+        )
         .eq("invoice_code", kode_invoice)
         .eq("business_id", authState.business_id);
 

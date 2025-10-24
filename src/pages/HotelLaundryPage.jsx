@@ -1,10 +1,12 @@
 // src/pages/HotelLaundryPage.jsx (Bagian Logika Lengkap)
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/supabaseClient";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import Struk from "../components/struk/Struk"; // <-- TAMBAH INI
+import PrintStrukButton from "../components/struk/PrintStrukButton";
 
 // Import komponen UI yang mungkin dibutuhkan (disimpan di sini biar rapi)
 import { Button } from "@/components/ui/Button.jsx";
@@ -25,6 +27,15 @@ import { Input } from "@/components/ui/Input.jsx";
 import { Label } from "@/components/ui/Label.jsx";
 import { Textarea } from "@/components/ui/Textarea.jsx";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/Dialog.jsx";
+
 function HotelLaundryPage() {
   const { authState } = useAuth();
   const [loadingHotels, setLoadingHotels] = useState(true);
@@ -36,6 +47,12 @@ function HotelLaundryPage() {
   const [quantities, setQuantities] = useState({}); // State { 'paket_id_1': "", 'paket_id_2': "" }
   const [notes, setNotes] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pickupDate, setPickupDate] = useState("");
+
+  const [createdOrderDetails, setCreatedOrderDetails] = useState(null); // <-- State buat nyimpen detail order yg baru dibuat
+  const [isStrukModalOpen, setIsStrukModalOpen] = useState(false); // <-- State buat buka/tutup modal struk
+  const [isStrukReady, setIsStrukReady] = useState(false); // <-- State kesiapan struk
+  const strukRef = useRef(null);
 
   // --- Fetch HANYA data hotel/villa (customer tipe 'hotel') ---
   useEffect(() => {
@@ -143,6 +160,21 @@ function HotelLaundryPage() {
     fetchPackagesForSelectedHotel();
   }, [selectedHotelId, hotelCustomers, authState.business_id]); // Trigger saat hotel dipilih
 
+  useEffect(() => {
+    setIsStrukReady(false); // Reset dulu
+    if (createdOrderDetails && isStrukModalOpen) {
+      // Cek kalo ada data DAN modal kebuka
+      const timer = setTimeout(() => {
+        if (strukRef.current) {
+          setIsStrukReady(true);
+        } else {
+          console.error("ERROR: Ref struk hotel masih kosong.");
+        }
+      }, 100); // Jeda render
+      return () => clearTimeout(timer);
+    }
+  }, [createdOrderDetails, isStrukModalOpen]);
+
   // --- Handler untuk ubah jumlah ---
   const handleQuantityChange = (packageId, value) => {
     const numValue = value === "" ? 0 : parseInt(value);
@@ -181,9 +213,44 @@ function HotelLaundryPage() {
           p_user_id: authState.user.id,
           p_notes: notes,
           p_items: itemsToSubmit,
+          p_pickup_date: pickupDate,
         }
       );
       if (error) throw error;
+
+      const { data: orderDetails, error: fetchError } = await supabase
+        .from("orders")
+        .select(
+          `
+            *, 
+            customers!inner(id, name, tipe_pelanggan, id_identitas_bisnis), 
+            branches(id, name, address, phone_number), 
+            order_items(*, packages(*))
+         `
+        )
+        .eq("id", newOrderId)
+        .eq("business_id", authState.business_id) // Keamanan
+        .single();
+
+      if (fetchError) {
+        toast.error(
+          "Order tercatat, tapi gagal memuat detail struk: " +
+            fetchError.message
+        );
+        // Lanjut reset form meskipun gagal fetch detail
+      } else {
+        // VVV TAMBAH LOG INI VVV
+        console.log("DEBUG Struk Modal - Data Order:", orderDetails);
+        console.log(
+          "DEBUG Struk Modal - ID Identitas:",
+          orderDetails?.customers?.id_identitas_bisnis
+        );
+        // ^^^ SELESAI ^^^
+        setCreatedOrderDetails(orderDetails); // Simpan detailnya
+        setIsStrukModalOpen(true); // Buka modal struk
+        toast.success("Data laundry hotel berhasil dicatat!");
+      }
+
       toast.success("Data laundry hotel berhasil dicatat!");
       setSelectedHotelId(""); // Reset pilihan hotel
       // Reset quantities (kosongkan semua input)
@@ -193,6 +260,7 @@ function HotelLaundryPage() {
       });
       setQuantities(initialQuantities);
       setNotes("");
+      setPickupDate("");
     } catch (error) {
       console.error("Gagal submit order hotel:", error);
       toast.error(error.message || "Gagal menyimpan data laundry hotel.");
@@ -241,6 +309,19 @@ function HotelLaundryPage() {
                   )}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="pickup-date">Tanggal Pickup</Label>
+              <Input
+                id="pickup-date"
+                type="date"
+                value={pickupDate}
+                onChange={(e) => setPickupDate(e.target.value)}
+                required // <-- Wajib diisi
+                // Batasi tanggal maksimal hari ini (opsional)
+                max={new Date().toISOString().split("T")[0]}
+              />
             </div>
 
             {/* --- Daftar Paket & Input Jumlah --- */}
@@ -321,6 +402,59 @@ function HotelLaundryPage() {
           </form>
         </CardContent>
       </Card>
+      <Dialog open={isStrukModalOpen} onOpenChange={setIsStrukModalOpen}>
+        <DialogContent className="max-w-xs p-4">
+          {" "}
+          {/* Ukuran modal kecil */}
+          <DialogHeader>
+            <DialogTitle>Struk Tercatat</DialogTitle>
+            <DialogDescription>
+              Invoice: {createdOrderDetails?.invoice_code || "-"}
+            </DialogDescription>
+          </DialogHeader>
+          {createdOrderDetails ? (
+            <div className="py-2">
+              {/* Tempat Struk (tidak terlihat langsung, hanya untuk print) */}
+              <div
+                className="absolute -left-[9999px] top-0 print:static print:block"
+                aria-hidden="true"
+              >
+                <div ref={strukRef}>
+                  {" "}
+                  {/* Pasang ref di sini */}
+                  <Struk
+                    transaksi={createdOrderDetails}
+                    pengaturan={authState.pengaturan}
+                  />
+                </div>
+              </div>
+              {/* Preview Struk di Modal (jika mau) */}
+              <div className="border rounded-md bg-muted/30 p-1 max-h-80 overflow-y-auto">
+                <Struk
+                  transaksi={createdOrderDetails}
+                  pengaturan={authState.pengaturan}
+                />
+              </div>
+            </div>
+          ) : (
+            <p className="text-center text-muted-foreground py-4">
+              Memuat detail struk...
+            </p>
+          )}
+          <DialogFooter className="mt-4 gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsStrukModalOpen(false)} // Tombol Tutup
+            >
+              Tutup
+            </Button>
+            <PrintStrukButton
+              componentRef={strukRef}
+              disabled={!isStrukReady || !createdOrderDetails} // Disable jika belum siap
+            />
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

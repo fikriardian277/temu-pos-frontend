@@ -136,7 +136,16 @@ function RiwayatPage() {
       // Ambil data LENGKAP untuk modal (sama kayak di RiwayatDetailPage)
       const { data, error } = await supabase
         .from("orders")
-        .select("*, customers(*), branches(*), order_items(*, packages(*))")
+        .select(
+          `
+      *,
+      tipe_order,
+      pickup_date,
+      customers!inner(id, name, tipe_pelanggan, id_identitas_bisnis),
+      branches(id, name, address, phone_number),
+      order_items(*, packages(*))
+    `
+        )
         .eq("invoice_code", tx.invoice_code) // <-- Pake invoice_code
         .eq("business_id", authState.business_id) // <-- Keamanan
         .single();

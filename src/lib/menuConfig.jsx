@@ -10,6 +10,7 @@ import {
   BookUser,
   History,
   Building,
+  Building2,
 } from "lucide-react";
 
 export const menuConfig = [
@@ -109,6 +110,12 @@ export const menuConfig = [
     label: "Profil Usaha",
     icon: <Building size={18} />,
     roles: ["owner"],
+  },
+  {
+    to: "/identitas-bisnis",
+    label: "Manajemen Identitas",
+    icon: <Building2 size={18} />, // Atau ikon lain yg cocok
+    roles: ["owner"], // Hanya Owner
   },
 
   // "Pengaturan Akun" dihapus dari sini
