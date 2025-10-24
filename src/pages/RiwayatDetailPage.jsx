@@ -58,7 +58,7 @@ export default function RiwayatDetailPage() {
           pickup_date, 
           customers!inner(id, name, tipe_pelanggan, id_identitas_bisnis), 
           branches(id, name, address, phone_number), 
-          order_items(*, packages(*))
+          order_items(*, packages(*, services(name)))
         `
         )
         .eq("invoice_code", kode_invoice)

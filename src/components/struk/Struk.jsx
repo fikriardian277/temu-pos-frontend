@@ -223,7 +223,14 @@ const Struk = React.forwardRef(({ transaksi, pengaturan }, ref) => {
         <>
           {transaksi.order_items?.map((item) => (
             <div key={item.id} className="mb-[3px]">
-              <p className="font-semibold">{item.packages?.name || "N/A"}</p>
+              {/* VVV Tampilkan Nama Layanan (jika ada) - Nama Paket VVV */}
+              <p className="font-semibold">
+                {item.packages?.services?.name
+                  ? `${item.packages.services.name} - `
+                  : ""}
+                {item.packages?.name || "N/A"}
+              </p>
+              {/* ^^^ SELESAI ^^^ */}
               <div className="total-row">
                 <span>
                   {item.quantity} {item.packages?.unit || "pcs"} ×{" "}
