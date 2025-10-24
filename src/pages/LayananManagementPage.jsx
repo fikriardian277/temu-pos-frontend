@@ -590,7 +590,7 @@ function LayananManagementPage() {
                     placeholder="0"
                   />
                   <p className="text-sm text-muted-foreground mt-1">
-                    Isi 0 jika tidak ada minimal order.
+                    Isi 1 jika tidak ada minimal order.
                   </p>
                 </div>
               </>
