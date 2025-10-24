@@ -117,7 +117,7 @@ function RiwayatPage() {
     return () => clearTimeout(timer);
   }, [fetchRiwayat]);
 
-  usePageVisibility(fetchRiwayat); // Pasang sensor anti-macet
+  // usePageVisibility(fetchRiwayat); // Pasang sensor anti-macet
 
   // Print handler (sudah bener pake v3 contentRef)
   const handlePrint = useReactToPrint({

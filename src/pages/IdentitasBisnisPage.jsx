@@ -134,7 +134,7 @@ function IdentitasBisnisPage() {
     fetchIdentitas();
   }, [fetchIdentitas]);
 
-  usePageVisibility(fetchIdentitas);
+  //   usePageVisibility(fetchIdentitas);
 
   // --- Modal & Form Handling ---
   const handleOpenModal = (identitas = null) => {

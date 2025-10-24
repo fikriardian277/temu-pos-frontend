@@ -95,7 +95,7 @@ const router = createBrowserRouter([
 ]);
 
 function App() {
-  usePageVisibility();
+  // usePageVisibility();
   return <RouterProvider router={router} />;
 }
 

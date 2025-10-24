@@ -1,4 +1,4 @@
-// src/context/AuthContext.jsx (VERSI FINAL & STABIL)
+// src/context/AuthContext.jsx (REVISI INISIALISASI & LISTENER)
 
 import React, {
   createContext,
@@ -6,132 +6,210 @@ import React, {
   useContext,
   useEffect,
   useCallback,
+  useRef, // <-- Tambah useRef
 } from "react";
 import { supabase } from "@/supabaseClient";
 
 const AuthContext = createContext();
 
-// ==========================================================
-// INI FUNGSI UTAMA "JANTUNG" APLIKASIMU
-// ==========================================================
-export function AuthProvider({ children, initialSession }) {
-  // 1. State diinisialisasi dengan data awal dari main.jsx
-  const [session, setSession] = useState(initialSession || null);
+export function AuthProvider({ children }) {
+  const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [settings, setSettings] = useState(null);
-  const [loading, setLoading] = useState(true); // Mulai dengan loading
+  const [loading, setLoading] = useState(true);
+  const isMounted = useRef(true);
 
-  // Fungsi untuk mengambil data user, dibungkus useCallback agar stabil
-  const fetchUserData = useCallback(async (currentSession) => {
-    try {
-      if (!currentSession) {
+  // Fungsi fetch data user (sudah dioptimasi)
+  const fetchUserData = useCallback(
+    async (currentSession) => {
+      // console.log("fetchUserData dipanggil untuk session:", currentSession?.user?.id); // Debug
+      try {
+        if (!currentSession?.user?.id) {
+          // console.log("fetchUserData: Tidak ada user ID, reset state."); // Debug
+          // Hanya reset jika state sebelumnya ada isinya
+          if (profile !== null) setProfile(null);
+          if (settings !== null) setSettings(null);
+          return;
+        }
+
+        // 1. Ambil profil dulu
+        const { data: profileData, error: profileError } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", currentSession.user.id)
+          .single(); // Pakai single()
+
+        if (profileError && profileError.code !== "PGRST116") {
+          // Abaikan error '0 rows'
+          throw profileError;
+        }
+
+        // 2. Jika profil ada, cari settings
+        let settingsData = null;
+        if (profileData?.business_id) {
+          const { data, error: settingsError } = await supabase
+            .from("settings")
+            .select("*")
+            .eq("business_id", profileData.business_id)
+            .maybeSingle();
+
+          if (settingsError) throw settingsError;
+          settingsData = data;
+        }
+
+        // 3. Bandingkan sebelum setState
+        const profileChanged =
+          JSON.stringify(profileData) !== JSON.stringify(profile);
+        const settingsChanged =
+          JSON.stringify(settingsData) !== JSON.stringify(settings);
+
+        if (profileChanged) {
+          // console.log("AuthProvider: Profile data changed, updating state."); // Debug
+          setProfile(profileData);
+        }
+        if (settingsChanged) {
+          // console.log("AuthProvider: Settings data changed, updating state."); // Debug
+          setSettings(settingsData);
+        }
+      } catch (error) {
+        console.error("Gagal mengambil data profil/settings:", error);
+        // Jangan logout paksa
         setProfile(null);
         setSettings(null);
-        return;
+      }
+      // Update dependency array
+    },
+    [profile, settings]
+  ); // <-- Dependencies for useCallback
+
+  // useEffect Utama: Cek sesi awal & pasang listener
+  useEffect(() => {
+    isMounted.current = true; // Set mount flag
+    let authListener = null; // Variable buat nyimpen subscription
+
+    async function initializeAuth() {
+      // 1. Cek sesi awal DULU
+      const {
+        data: { session: initialSession },
+        error: sessionError,
+      } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error("Error getting initial session:", sessionError);
       }
 
-      // 1. Ambil profil dulu
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", currentSession.user.id)
-        .single();
+      // Kalau komponen masih mount, set sesi awal & fetch data awal
+      if (isMounted.current) {
+        setSession(initialSession);
+        if (initialSession) {
+          await fetchUserData(initialSession);
+        }
+        setLoading(false); // Selesai loading HANYA SETELAH sesi awal dicek & data (kalau ada) difetch
 
-      if (profileError) throw profileError;
+        // 2. BARU PASANG LISTENER setelah state session awal terpasang
+        // 2. BARU PASANG LISTENER setelah state session awal terpasang
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+          if (!isMounted.current) return;
 
-      // 2. JIKA PROFIL ADA, PAKAI 'profileData' UNTUK CARI PENGATURAN
-      let settingsData = null;
-      if (profileData && profileData.business_id) {
-        const { data, error: settingsError } = await supabase
-          .from("settings")
-          .select("*")
-          .eq("business_id", profileData.business_id) // <-- BENERIN: Pake 'profileData.business_id'
-          .maybeSingle();
+          console.log(
+            "Auth State Change Event Diterima:",
+            _event,
+            "Sesi Baru?",
+            !!newSession
+          );
 
-        if (settingsError) throw settingsError;
-        settingsData = data;
+          const currentUserId = session?.user?.id;
+          const newUserId = newSession?.user?.id;
+
+          if (_event === "SIGNED_IN" && currentUserId !== newUserId) {
+            console.log(
+              "AuthProvider: SIGNED_IN event, updating session state."
+            );
+            setSession(newSession);
+          } else if (_event === "SIGNED_OUT" && currentUserId !== null) {
+            console.log(
+              "AuthProvider: SIGNED_OUT event, updating session state."
+            );
+            setSession(null);
+          } else if (_event === "USER_UPDATED" && newUserId) {
+            console.log(
+              "AuthProvider: USER_UPDATED event, refetching user data."
+            );
+            await fetchUserData(newSession);
+          } else {
+            console.log(
+              `AuthProvider: Event ${_event} diabaikan, user unchanged or event not relevant.`
+            );
+          }
+        });
+        authListener = subscription;
       }
+    }
 
-      // 3. Baru set state-nya
-      setProfile(profileData);
-      setSettings(settingsData);
-    } catch (error) {
-      console.error(
-        "Gagal mengambil data profil/settings, logout paksa:",
-        error
-      );
-      await supabase.auth.signOut();
+    initializeAuth();
+
+    return () => {
+      isMounted.current = false; // Set flag unmount
+      authListener?.unsubscribe(); // Unsubscribe listener
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // useEffect untuk fetch user data ketika sesi berubah (hanya jika ID user beda)
+  useEffect(() => {
+    // Periksa session?.user?.id untuk memastikan session valid
+    if (session?.user?.id) {
+      fetchUserData(session);
+    } else {
+      // Jika session jadi null (logout), pastikan profile & settings juga null
+      if (profile !== null) setProfile(null);
+      if (settings !== null) setSettings(null);
+    }
+    // Hanya fetch ulang jika objek session (identitas user) benar-benar berubah
+  }, [session, fetchUserData]);
+
+  // Objek authState
+  const authState = {
+    user: session?.user,
+    ...profile, // Sebar profile, termasuk role, full_name, branch_id, business_id
+    pengaturan: settings,
+    isReady: !loading, // isReady true HANYA setelah loading awal selesai
+  };
+
+  // Fungsi logout
+  const logout = () => supabase.auth.signOut();
+
+  // Fungsi refetch (bisa dipanggil manual jika perlu)
+  const refetchAuthData = useCallback(async () => {
+    console.log("REFETCH: Mengambil data auth terbaru manual...");
+    setLoading(true); // Set loading true saat refetch manual
+    const {
+      data: { session: currentSession },
+    } = await supabase.auth.getSession();
+    if (currentSession) {
+      await fetchUserData(currentSession);
+    } else {
       setProfile(null);
       setSettings(null);
     }
-  }, []);
-
-  const refetchAuthData = useCallback(async () => {
-    console.log("REFETCH: Mengambil data auth terbaru...");
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (session) {
-      await fetchUserData(session);
-    }
+    setLoading(false); // Selesai loading
   }, [fetchUserData]);
 
-  // useEffect ini sekarang punya dua tugas:
-  // 1. Mengambil data awal saat komponen pertama kali mount.
-  // 2. Mendengarkan perubahan login/logout di masa depan.
-  useEffect(() => {
-    // Tugas 1: Ambil data awal berdasarkan initialSession
-    async function getInitialData() {
-      if (initialSession) {
-        await fetchUserData(initialSession);
-      }
-      // Setelah data awal selesai di-load, baru kita matikan loading
-      setLoading(false);
-    }
-    getInitialData();
-
-    // Tugas 2: Siapkan listener untuk login/logout berikutnya
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, newSession) => {
-      // Listener ini akan menangani saat user klik login atau logout
-      setSession(newSession);
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []); // <-- Array kosong berarti ini hanya jalan sekali saat komponen mount
-
-  // Setiap kali sesi berubah (dari listener), kita ambil ulang data profilnya
-  useEffect(() => {
-    if (session) {
-      fetchUserData(session);
-    }
-  }, [session, fetchUserData]);
-
-  // Objek authState yang akan digunakan di seluruh aplikasi
-  const authState = {
-    user: session?.user,
-    ...profile,
-    pengaturan: settings,
-    isReady: !loading,
-  };
-
-  const logout = () => supabase.auth.signOut();
+  // Value untuk context provider
   const value = { authState, logout, refetchAuthData };
+
+  // Log tambahan untuk melihat kapan AuthProvider re-render
+  // console.log("AuthProvider RENDER, loading:", loading, "isReady:", !loading, "User:", session?.user?.id);
 
   return (
     <AuthContext.Provider value={value}>
-      {/* Kunci anti-blank screen: Jangan render children sampai loading awal selesai */}
       {!loading && children}
     </AuthContext.Provider>
   );
 }
 
-// ==========================================================
-// INI HOOK UNTUK MEMANGGIL "JANTUNG"-NYA
-// ==========================================================
+// Hook useAuth (tetap sama)
 export function useAuth() {
   const context = useContext(AuthContext);
   if (context === undefined) {

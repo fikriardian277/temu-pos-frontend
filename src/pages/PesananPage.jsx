@@ -317,7 +317,7 @@ function PesananPage() {
     }
   };
 
-  usePageVisibility(fetchPesanan); // Pasang sensor anti-macet
+  // usePageVisibility(fetchPesanan); // Pasang sensor anti-macet
 
   const handleFilterChange = (e) => {
     setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));

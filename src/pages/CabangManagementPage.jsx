@@ -93,7 +93,7 @@ function CabangManagementPage() {
   }, [fetchCabangs]);
 
   // Pasang sensor anti-macet
-  usePageVisibility(fetchCabangs);
+  // usePageVisibility(fetchCabangs);
 
   const handleInputChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });

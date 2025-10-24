@@ -188,7 +188,7 @@ function PengaturanUsahaPage() {
     fetchSettings();
   }, [fetchSettings]);
 
-  usePageVisibility(fetchSettings);
+  // usePageVisibility(fetchSettings);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

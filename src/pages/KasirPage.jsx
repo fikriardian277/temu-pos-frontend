@@ -164,7 +164,18 @@ function KasirPage() {
 
       const { data: detailResponse, error: detailError } = await supabase
         .from("orders")
-        .select(`*, customers(*), branches(*), order_items(*, packages(*))`)
+        // VVV SELECT BARU VVV
+        .select(
+          `
+         *, 
+         tipe_order, 
+         pickup_date, 
+         customers!inner(id, name, tipe_pelanggan, id_identitas_bisnis), 
+         branches(id, name, address, phone_number), 
+         order_items(*, packages(*, services(name)))  // <-- Tambah services(name)
+       `
+        )
+        // ^^^ SELESAI ^^^
         .eq("invoice_code", newInvoiceCode)
         .eq("business_id", authState.business_id)
         .single();
@@ -385,7 +396,7 @@ function KasirPage() {
     fetchServices();
   }, [fetchServices]);
 
-  usePageVisibility(fetchServices);
+  // usePageVisibility(fetchServices);
 
   // UPGRADE: Fungsi update alamat sekarang pake Supabase dan anti-bocor
   const handleUpdateAlamat = async (e) => {

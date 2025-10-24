@@ -87,7 +87,7 @@ export default function RiwayatDetailPage() {
     fetchDetail();
   }, [fetchDetail]);
 
-  usePageVisibility(fetchDetail);
+  // usePageVisibility(fetchDetail);
 
   // "Sensor" Kesiapan Struk (sama persis kayak di KasirPage)
   useEffect(() => {

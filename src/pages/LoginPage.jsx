@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/Button.jsx";
 import {
   Card,
@@ -23,6 +23,7 @@ function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -97,14 +98,36 @@ function LoginPage() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="Password Anda"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  // Ganti type jadi dinamis
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Password Anda"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="pr-10" // <-- Tambah padding kanan
+                />
+                {/* VVV Tombol Mata Absolut VVV */}
+                <Button
+                  type="button" // <-- Penting: jangan submit form
+                  variant="ghost"
+                  size="icon"
+                  className="absolute inset-y-0 right-0 flex items-center justify-center h-full w-10 text-muted-foreground" // Posisi & style
+                  onClick={() => setShowPassword((prev) => !prev)} // Toggle state
+                >
+                  {showPassword ? (
+                    <EyeOff size={18} aria-hidden="true" />
+                  ) : (
+                    <Eye size={18} aria-hidden="true" />
+                  )}
+                  <span className="sr-only">
+                    {showPassword ? "Sembunyikan" : "Tampilkan"} password
+                  </span>
+                </Button>
+                {/* ^^^ Selesai Tombol ^^^ */}
+              </div>
             </div>
             {error && (
               <p className="text-sm text-destructive text-center">{error}</p>

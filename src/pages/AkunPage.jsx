@@ -11,6 +11,8 @@ import {
   LogOut,
   Loader2,
   ClipboardList,
+  Eye,
+  EyeOff,
 } from "lucide-react"; // <-- Tambah Loader2
 import { toast } from "sonner"; // <-- Pake toast biar konsisten
 
@@ -106,6 +108,8 @@ function UbahPassword() {
     password_baru: "",
   });
   const [saving, setSaving] = useState(false);
+  const [showOldPassword, setShowOldPassword] = useState(false); // <-- State 1
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -148,26 +152,80 @@ function UbahPassword() {
     <form onSubmit={handleSubmit} className="space-y-4">
       <div>
         <Label htmlFor="password_lama">Password Lama</Label>
-        <Input
-          id="password_lama"
-          type="password"
-          value={formData.password_lama}
-          onChange={(e) =>
-            setFormData((prev) => ({ ...prev, password_lama: e.target.value }))
-          }
-        />
+        <div className="relative">
+          {" "}
+          {/* <-- Wrapper */}
+          <Input
+            id="password_lama"
+            type={showOldPassword ? "text" : "password"} // <-- Tipe dinamis
+            value={formData.password_lama}
+            onChange={(e) =>
+              setFormData((prev) => ({
+                ...prev,
+                password_lama: e.target.value,
+              }))
+            }
+            className="pr-10" // <-- Padding kanan
+            required // <-- Jangan lupa required kalau perlu
+          />
+          <Button
+            type="button" // <-- Tipe button
+            variant="ghost"
+            size="icon"
+            className="absolute inset-y-0 right-0 flex items-center justify-center h-full w-10 text-muted-foreground" // <-- Posisi & style
+            onClick={() => setShowOldPassword((prev) => !prev)} // <-- Toggle state lama
+          >
+            {showOldPassword ? (
+              <EyeOff size={18} aria-hidden="true" />
+            ) : (
+              <Eye size={18} aria-hidden="true" />
+            )}
+            <span className="sr-only">
+              {showOldPassword ? "Sembunyikan" : "Tampilkan"} password lama
+            </span>
+          </Button>
+        </div>
       </div>
+
+      {/* --- Input Password Baru (dengan tombol mata) --- */}
       <div>
         <Label htmlFor="password_baru">Password Baru (Min. 6 karakter)</Label>
-        <Input
-          id="password_baru"
-          type="password"
-          value={formData.password_baru}
-          onChange={(e) =>
-            setFormData((prev) => ({ ...prev, password_baru: e.target.value }))
-          }
-        />
+        <div className="relative">
+          {" "}
+          {/* <-- Wrapper */}
+          <Input
+            id="password_baru"
+            type={showNewPassword ? "text" : "password"} // <-- Tipe dinamis
+            value={formData.password_baru}
+            onChange={(e) =>
+              setFormData((prev) => ({
+                ...prev,
+                password_baru: e.target.value,
+              }))
+            }
+            className="pr-10" // <-- Padding kanan
+            required // <-- Jangan lupa required kalau perlu
+          />
+          <Button
+            type="button" // <-- Tipe button
+            variant="ghost"
+            size="icon"
+            className="absolute inset-y-0 right-0 flex items-center justify-center h-full w-10 text-muted-foreground" // <-- Posisi & style
+            onClick={() => setShowNewPassword((prev) => !prev)} // <-- Toggle state baru
+          >
+            {showNewPassword ? (
+              <EyeOff size={18} aria-hidden="true" />
+            ) : (
+              <Eye size={18} aria-hidden="true" />
+            )}
+            <span className="sr-only">
+              {showNewPassword ? "Sembunyikan" : "Tampilkan"} password baru
+            </span>
+          </Button>
+        </div>
       </div>
+
+      {/* --- Tombol Submit (tetap sama) --- */}
       <div className="flex justify-end">
         <Button type="submit" disabled={saving}>
           {saving ? (

@@ -140,7 +140,7 @@ function LayananManagementPage() {
   }, [fetchData]);
 
   // Pasang sensor anti-macet
-  usePageVisibility(fetchData);
+  // usePageVisibility(fetchData);
 
   const handleDownloadCSV = async () => {
     if (!authState.isReady || !authState.business_id || loadingCSV) return;

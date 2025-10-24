@@ -263,7 +263,7 @@ function ProsesPage() {
     return () => clearTimeout(timer);
   }, [fetchData]);
 
-  usePageVisibility(fetchData);
+  // usePageVisibility(fetchData);
 
   // ==========================================================
   // "MESIN" handleUpdateStatus DI-UPGRADE TOTAL

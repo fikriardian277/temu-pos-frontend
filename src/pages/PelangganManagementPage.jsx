@@ -240,7 +240,7 @@ function PelangganManagementPage() {
     }
   }, [authState.role, authState.business_id]);
 
-  usePageVisibility(fetchPelanggans);
+  // usePageVisibility(fetchPelanggans);
 
   const handleDownloadCSV = async () => {
     if (!authState.isReady || !authState.business_id || loadingCSV) return;
