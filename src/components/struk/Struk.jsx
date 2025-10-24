@@ -177,6 +177,14 @@ const Struk = React.forwardRef(({ transaksi, pengaturan }, ref) => {
                 {formatDate(transaksi.estimated_completion_date, true)}
               </span>
             </div>
+            {/* <div className="total-row">
+              <span>Kasir:</span>
+              <span>
+                {transaksi.user_id
+                  ? transaksi.user_id.substring(0, 8) + "..."
+                  : "-"}
+              </span>
+            </div> */}
           </>
         )}
         <div className="text-center my-1 pt-1 border-t border-dashed border-black">
