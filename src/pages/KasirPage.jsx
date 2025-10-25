@@ -421,11 +421,15 @@ function KasirPage() {
 
   return (
     <div>
+      {" "}
+      {/* <-- Div utama halaman */}
       {!transaksiSuccess ? (
+        // --- BLOK FORM INPUT TRANSAKSI ---
         <>
           <h1 className="text-3xl font-bold mb-6">Buat Transaksi Baru</h1>
           <div className="flex flex-col lg:flex-row gap-8">
             <div className="lg:w-7/12 flex flex-col gap-8">
+              {/* Customer Section */}
               <CustomerSection
                 selectedPelanggan={selectedPelanggan}
                 onSelectPelanggan={handleSelectPelanggan}
@@ -436,13 +440,14 @@ function KasirPage() {
                 onOpenPoinModal={() => setIsPoinModalOpen(true)}
                 pengaturan={authState.pengaturan}
               />
-              {/* BENERIN: Panggil ServiceSelector dengan props baru yang lebih simpel */}
+              {/* Service Selector */}
               <ServiceSelector
                 categories={allCategories}
                 onAddToCart={addItemToCart}
               />
             </div>
             <div className="lg:w-5/12">
+              {/* Cart Section */}
               <Cart
                 cart={cart}
                 onRemoveFromCart={handleRemoveFromCart}
@@ -476,71 +481,102 @@ function KasirPage() {
           </div>
         </>
       ) : (
-        <Card className="max-w-2xl mx-auto">
-          <CardHeader className="text-center">
-            <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
-            <CardTitle className="text-2xl">Transaksi Berhasil!</CardTitle>
-            <CardDescription>
-              {/* BENERIN: Gunakan nama kolom asli 'invoice_code' */}
-              Invoice {detailTransaksiSukses?.invoice_code} telah dibuat.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            {/* Tampilkan Struk HANYA JIKA data siap */}
-            {detailTransaksiSukses && (
-              <div className="border rounded-lg my-4 bg-muted/30 p-2">
-                <div className="max-h-64 overflow-y-auto">
-                  <div className="w-[220px] mx-auto">
-                    <Struk
-                      ref={strukRef}
-                      transaksi={detailTransaksiSukses}
-                      pengaturan={authState.pengaturan}
-                    />
+        // <-- Mulai blok: Jika transaksiSuccess = true
+        // --- BLOK SUKSES TRANSAKSI ---
+        <>
+          {" "}
+          {/* <-- Bungkus dengan Fragment */}
+          <Card className="max-w-2xl mx-auto">
+            <CardHeader className="text-center">
+              <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
+              <CardTitle className="text-2xl">Transaksi Berhasil!</CardTitle>
+              <CardDescription>
+                Invoice {detailTransaksiSukses?.invoice_code} telah dibuat.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {/* Preview Struk di layar (TANPA ref) */}
+              {detailTransaksiSukses && (
+                <div className="border rounded-lg my-4 bg-muted/30 p-2">
+                  <div className="max-h-64 overflow-y-auto">
+                    <div className="w-[220px] mx-auto">
+                      <Struk
+                        // ref={strukRef} // <-- REF DIHAPUS DARI SINI
+                        transaksi={detailTransaksiSukses}
+                        pengaturan={authState.pengaturan}
+                      />
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-            {/* Tampilkan tombol HANYA JIKA data siap */}
-            {detailTransaksiSukses && (
-              <div className="mt-6 grid grid-cols-2 gap-4">
-                <PrintStrukButton
-                  componentRef={strukRef}
-                  disabled={!isStrukReady}
+              {/* Tombol Print & WA (muncul jika data siap) */}
+              {detailTransaksiSukses && (
+                <div className="mt-6 grid grid-cols-2 gap-4">
+                  {/* Kembali ke PrintStrukButton */}
+                  <PrintStrukButton
+                    componentRef={strukRef} // <-- Ref ke div tersembunyi
+                    disabled={!isStrukReady}
+                  />
+                  <Button
+                    onClick={handleKirimWA}
+                    variant="outline"
+                    className="bg-green-500 text-white hover:bg-green-600"
+                    disabled={loadingWA}
+                  >
+                    {loadingWA ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
+                        Mengirim...
+                      </>
+                    ) : (
+                      "Kirim WhatsApp"
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {/* Tombol Buat Transaksi Baru */}
+              <Button
+                onClick={resetForm}
+                variant="default"
+                className="w-full mt-4"
+              >
+                Buat Transaksi Baru
+              </Button>
+            </CardContent>
+          </Card>{" "}
+          {/* <-- Akhir Card Sukses */}
+          {/* DIV TERSEMBUNYI KHUSUS UNTUK PRINT (Struktur Benar) */}
+          <div
+            id="struk-print-area" // ID untuk CSS Print
+            className="absolute -left-[9999px] top-0" // Cara sembunyikan (sesuaikan dgn CSS jika perlu)
+            aria-hidden="true"
+          >
+            <div ref={strukRef}>
+              {" "}
+              {/* Ref untuk PrintStrukButton */}
+              {detailTransaksiSukses && ( // Render Struk lagi KHUSUS untuk print
+                <Struk
+                  transaksi={detailTransaksiSukses}
+                  pengaturan={authState.pengaturan}
                 />
-                <Button
-                  onClick={handleKirimWA}
-                  variant="outline"
-                  className="bg-green-500 text-white hover:bg-green-600"
-                >
-                  Kirim WhatsApp
-                </Button>
-              </div>
-            )}
-
-            {/* Tombol ini selalu tampil */}
-            <Button
-              onClick={resetForm}
-              variant="default"
-              className="w-full mt-4"
-            >
-              Buat Transaksi Baru
-            </Button>
-          </CardContent>
-        </Card>
-      )}
-
+              )}
+            </div>
+          </div>
+          {/* AKHIR DIV TERSEMBUNYI */}
+        </> // <-- Akhir Fragment
+      )}{" "}
+      {/* <-- Akhir blok sukses transaksi (ternary operator) */}
       {/* --- MODAL TUKAR POIN --- */}
       {selectedPelanggan && (
         <Dialog open={isPoinModalOpen} onOpenChange={setIsPoinModalOpen}>
           <DialogContent>
             <DialogHeader>
-              {/* BENERIN: Gunakan nama kolom asli 'name' */}
               <DialogTitle>Tukar Poin: {selectedPelanggan.name}</DialogTitle>
             </DialogHeader>
             <form onSubmit={handlePoinSubmit} className="space-y-4 py-4">
               <p className="text-muted-foreground">
-                {/* BENERIN: Gunakan nama kolom asli 'points' */}
                 Poin tersedia: {selectedPelanggan.points}
               </p>
               {formError && (
@@ -571,14 +607,12 @@ function KasirPage() {
           </DialogContent>
         </Dialog>
       )}
-
       {/* --- MODAL UPDATE ALAMAT --- */}
       <Dialog open={isAlamatModalOpen} onOpenChange={setIsAlamatModalOpen}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Update Alamat Pelanggan</DialogTitle>
             <DialogDescription>
-              {/* BENERIN: Gunakan nama kolom asli 'name' */}
               Ubah alamat untuk {selectedPelanggan?.name}. Perubahan ini akan
               tersimpan permanen.
             </DialogDescription>
@@ -604,8 +638,8 @@ function KasirPage() {
           </form>
         </DialogContent>
       </Dialog>
-    </div>
+    </div> // <-- Akhir div utama halaman
   );
-}
+} // <-- Akhir function KasirPage
 
 export default KasirPage;
