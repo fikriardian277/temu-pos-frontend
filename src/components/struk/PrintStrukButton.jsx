@@ -8,24 +8,31 @@ import { toast } from "sonner";
 function PrintStrukButton({ componentRef, disabled }) {
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
-    documentTitle: "struk-transaksi",
-
-    // ⚡ PENTING: tambahkan pageStyle agar bodyClass dijamin aktif
     bodyClass: "print-struk-body",
-    pageStyle: `
-      @page { size: 58mm auto; margin: 0 !important; }
-      body.print-struk-body * { visibility: hidden !important; }
-      body.print-struk-body #struk-print-area,
-      body.print-struk-body #struk-print-area * { visibility: visible !important; }
-      body.print-struk-body #struk-print-area {
-        height: auto !important;
-        opacity: 1 !important;
-        pointer-events: auto !important;
-        position: static !important;
-      }
-    `,
-
+    documentTitle: "struk-transaksi",
     removeAfterPrint: false,
+
+    // --- ini tambahan penting ---
+    pageStyle: `
+    @page { size: 58mm auto; margin: 0 !important; }
+
+    body.print-struk-body * {
+      visibility: hidden !important;
+    }
+
+    body.print-struk-body #struk-print-area,
+    body.print-struk-body #struk-print-area * {
+      visibility: visible !important;
+    }
+
+    body.print-struk-body #struk-print-area {
+      height: auto !important;
+      opacity: 1 !important;
+      pointer-events: auto !important;
+      position: static !important;
+    }
+  `,
+
     onPrintError: (error) => {
       console.error("REACT-TO-PRINT ERROR:", error);
       toast.error("Gagal menyiapkan print. Coba lagi.");
