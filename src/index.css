@@ -64,29 +64,45 @@
 @tailwind utilities;
 
 @media print {
-  /* Aturan @page tetap (paling penting) */
+  /* Aturan @page (penting untuk 58mm & margin 0) */
   @page {
     size: 58mm auto;
     margin: 0 !important;
   }
 
-  /* Sembunyikan SEMUA elemen body */
-  body > * {
-    display: none !important;
+  /* Sembunyikan SEMUA elemen body secara default */
+  body * {
+    visibility: hidden;
   }
 
-  /* Tampilkan HANYA wrapper area print dan isinya */
-  #struk-print-area-wrapper,
-  #struk-print-area-wrapper * {
-    display: block !important; /* Paksa block, atau 'revert' jika perlu */
-    visibility: visible !important; /* Pastikan visible */
-    position: static !important; /* Hapus positioning aneh */
+  /* Tampilkan HANYA elemen struk dan SEMUA ISINYA */
+  #struk-print-area,
+  #struk-print-area * {
+    /* Tanda '*' penting */
+    visibility: visible;
   }
 
-  /* Pastikan body bersih */
+  /* Posisikan struk di pojok kiri atas halaman print */
+  #struk-print-area {
+    position: absolute; /* Atau fixed */
+    left: 0;
+    top: 0;
+    width: 100%; /* Lebar ikut @page */
+  }
+
+  /* Pastikan body juga bersih */
   body {
     margin: 0 !important;
     padding: 0 !important;
     background: none !important;
+  }
+
+  /* Sembunyikan elemen umum lain (jaga-jaga) */
+  header,
+  nav,
+  aside,
+  button:not(#struk-print-area button),
+  [role="dialog"] {
+    display: none !important;
   }
 }

@@ -513,20 +513,8 @@ function KasirPage() {
               {detailTransaksiSukses && (
                 <div className="mt-6 grid grid-cols-2 gap-4">
                   <PrintStrukButton
-                    componentRef={strukRef}
+                    componentRef={strukRef} // <-- Ref ke div tersembunyi
                     disabled={!isStrukReady}
-                    // Tambah ini:
-                    onBeforePrint={() => {
-                      return new Promise((resolve) => {
-                        // Jeda singkat SEBELUM preview muncul
-                        setTimeout(() => {
-                          console.log(
-                            "onBeforePrint: Jeda selesai, buka preview."
-                          );
-                          resolve();
-                        }, 50); // Coba 50ms dulu
-                      });
-                    }}
                   />
                   <Button
                     onClick={handleKirimWA}
