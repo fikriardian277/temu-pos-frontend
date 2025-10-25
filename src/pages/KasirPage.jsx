@@ -550,20 +550,17 @@ function KasirPage() {
           {/* <-- Akhir Card Sukses */}
           {/* DIV TERSEMBUNYI KHUSUS UNTUK PRINT */}
           <div
-            id="struk-print-area" // ID untuk CSS Print
-            className="absolute -left-[9999px] top-0" // Cara sembunyikan standar
+            id="struk-print-area" // <-- ID di sini
+            ref={strukRef} // <-- REF di sini
+            className="absolute left-0 top-0 h-0 w-full overflow-hidden opacity-0" // <-- HIDING CLASS di sini
             aria-hidden="true"
           >
-            <div ref={strukRef}>
-              {" "}
-              {/* Ref untuk PrintStrukButton */}
-              {detailTransaksiSukses && ( // Render Struk lagi
-                <Struk
-                  transaksi={detailTransaksiSukses}
-                  pengaturan={authState.pengaturan}
-                />
-              )}
-            </div>
+            {detailTransaksiSukses && ( // Render <Struk> langsung di dalemnya
+              <Struk
+                transaksi={detailTransaksiSukses}
+                pengaturan={authState.pengaturan}
+              />
+            )}
           </div>
           {/* AKHIR DIV TERSEMBUNYI */}
         </> // <-- Akhir Fragment
