@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext"; // <-- BENERIN
 import { useReactToPrint } from "react-to-print";
 import Struk from "../components/struk/Struk";
 import { toast } from "sonner";
-import { usePageVisibility } from "@/lib/usePageVisibility.js"; // <-- Tambah sensor
+import PrintStrukButton from "../components/struk/PrintStrukButton";
 
 // ... (semua import komponen UI & ikon tidak berubah)
 import { Button } from "@/components/ui/Button.jsx";
@@ -46,6 +46,7 @@ function RiwayatPage() {
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [loadingWA, setLoadingWA] = useState(false);
+  const [isStrukReady, setIsStrukReady] = useState(false);
   const { authState } = useAuth();
   const strukRef = useRef(null);
 
@@ -117,7 +118,20 @@ function RiwayatPage() {
     return () => clearTimeout(timer);
   }, [fetchRiwayat]);
 
-  // usePageVisibility(fetchRiwayat); // Pasang sensor anti-macet
+  useEffect(() => {
+    setIsStrukReady(false); // Reset dulu
+    // Cek kalo ada data detail DAN modal kebuka
+    if (detailTransaksi && isDetailOpen) {
+      const timer = setTimeout(() => {
+        if (strukRef.current) {
+          setIsStrukReady(true);
+        } else {
+          console.error("ERROR: Ref struk modal riwayat masih kosong.");
+        }
+      }, 100); // Jeda render
+      return () => clearTimeout(timer);
+    }
+  }, [detailTransaksi, isDetailOpen]);
 
   // Print handler (sudah bener pake v3 contentRef)
   const handlePrint = useReactToPrint({
@@ -331,10 +345,11 @@ function RiwayatPage() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" onClick={handlePrint}>
-                    <Printer className="w-4 h-4 mr-2" />
-                    Cetak Ulang
-                  </Button>
+                  <PrintStrukButton
+                    componentRef={strukRef} // Ref ke div tersembunyi
+                    disabled={!isStrukReady || !detailTransaksi} // Disable jika belum siap/data belum ada
+                    // Hapus onBeforePrint atau onBeforeGetContent jika ada
+                  />
                   <Button
                     variant="default"
                     className="bg-green-500 hover:bg-green-600"
@@ -365,13 +380,21 @@ function RiwayatPage() {
       </Dialog>
 
       {/* Elemen tersembunyi untuk keperluan print */}
-      <div style={{ position: "absolute", left: "-9999px", top: 0 }}>
+      <div
+        id="struk-print-area" // <-- TAMBAH ID DI SINI
+        style={{ position: "absolute", left: "-9999px", top: 0 }}
+        aria-hidden="true"
+      >
         <div ref={strukRef}>
-          {/* BENERIN: Kasih 'pengaturan' ke Struk */}
-          <Struk
-            transaksi={detailTransaksi}
-            pengaturan={authState.pengaturan}
-          />
+          {" "}
+          {/* <-- Ref udah bener di sini */}
+          {/* Render Struk HANYA JIKA ada data detail */}
+          {detailTransaksi && (
+            <Struk
+              transaksi={detailTransaksi} // <-- Pake detailTransaksi
+              pengaturan={authState.pengaturan}
+            />
+          )}
         </div>
       </div>
     </div>
