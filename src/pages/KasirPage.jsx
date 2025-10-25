@@ -490,7 +490,7 @@ function KasirPage() {
             {detailTransaksiSukses && (
               <div className="border rounded-lg my-4 bg-muted/30 p-2 print-area">
                 <div className="max-h-64 overflow-y-auto">
-                  <div className="w-[220px] mx-auto">
+                  <div className="w-[220px] mx-auto print-area">
                     <Struk
                       ref={strukRef}
                       transaksi={detailTransaksiSukses}

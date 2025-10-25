@@ -64,23 +64,27 @@
 @tailwind utilities;
 
 @media print {
-  /* Hilangin margin bawaan printer/browser */
   @page {
     margin: 0;
   }
 
-  /* Sembunyikan semua elemen kecuali area struk */
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Sembunyikan semua elemen */
   body * {
     visibility: hidden !important;
   }
 
-  /* Tampilkan cuma struk */
+  /* Tampilkan hanya area struk */
   .print-area,
   .print-area * {
     visibility: visible !important;
   }
 
-  /* Posisi struk di kiri atas tanpa margin */
+  /* Pastikan posisi struk nempel di atas */
   .print-area {
     position: absolute;
     top: 0;
@@ -88,11 +92,5 @@
     width: 100%;
     margin: 0;
     padding: 0;
-  }
-
-  /* Optional: pastikan body juga gak ada margin/padding */
-  body {
-    margin: 0 !important;
-    padding: 0 !important;
   }
 }
