@@ -8,33 +8,31 @@ import { toast } from "sonner";
 
 function PrintStrukButton({ componentRef, disabled }) {
   const handlePrint = useReactToPrint({
-    // 1. TETAP PAKAI contentRef (karena versi lu wajib pake ini)
-    contentRef: componentRef, // 2. TAMBAHKAN PROP INI // Ini akan nambah class 'print-struk-body' ke <body> // di JENDELA PRINT (iframe)
+    contentRef: componentRef, // <-- Tetap pake 'contentRef' // VVV Prop ini buat ngebenerin bug 'h-0' VVV
 
-    bodyClass: "print-struk-body", // 3. HAPUS SEMUA JAVASCRIPT DELAY (PENTING!) // HAPUS onBeforeGetContent // HAPUS onAfterPrint
+    bodyClass: "print-struk-body", // HAPUS SEMUA onBeforeGetContent / onAfterPrint
 
     documentTitle: "struk-transaksi",
-    removeAfterPrint: false, // Biarin
+    removeAfterPrint: false,
     onPrintError: (error) => {
       console.error("REACT-TO-PRINT ERROR:", error);
       toast.error("Gagal menyiapkan print. Coba lagi.");
     },
-  }); // 4. Return button-nya (biarin, udah bener)
+  });
 
   return (
     <Button
       onClick={() => {
-        // Pengecekan ini tetep penting
         if (componentRef?.current && componentRef.current.innerHTML !== "") {
           handlePrint();
         } else {
-          console.error("Ref struk kosong atau belum siap!");
-          toast.error("Struk belum siap dicetak, coba sesaat lagi.");
+          console.error("Ref struk kosong!");
+          toast.error("Struk belum siap dicetak.");
         }
       }}
       variant="outline"
       className="w-full"
-      disabled={disabled}
+      disabled={disabled} // <-- PASTIKAN INI ADA
     >
       <Printer className="mr-2 h-4 w-4" /> Cetak Struk{" "}
     </Button>

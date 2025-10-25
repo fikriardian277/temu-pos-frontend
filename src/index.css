@@ -64,42 +64,57 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Reset body di jendela print */
-body.print-struk-body {
-  margin: 0 !important;
-  padding: 0 !important;
-  background: none !important;
-}
+/*
+ * 2. ATURAN UNTUK IFRAME (SOLUSI UTAMA)
+ * Ini nargetin iframe yang dibuat 'react-to-print'
+ */
 
-/* * VVV INI YANG HILANG VVV
- * Sembunyikan SEMUA elemen di dalam body iframe
-*/
+/* Sembunyikan semua di iframe */
 body.print-struk-body * {
   visibility: hidden !important;
 }
 
-/* * Tampilkan HANYA div struk dan isinya
- * (Ini lebih kuat dari aturan 'hidden' di atas)
-*/
+/* Tampilkan struk & isinya di iframe */
 body.print-struk-body #struk-print-area,
 body.print-struk-body #struk-print-area * {
   visibility: visible !important;
 }
 
-/* * "BUKA" div struk-nya (override h-0, opacity-0)
- * Ini harus nargetin #struk-print-area (tanpa *)
-*/
+/* "Buka" div struk-nya di iframe (lawan h-0) */
 body.print-struk-body #struk-print-area {
   height: auto !important;
   opacity: 1 !important;
   pointer-events: auto !important;
-  position: static !important; /* Paksa jadi static biar ngalir di iframe */
+  position: static !important;
 }
 
-/* 3. ATURAN @page (Biarkan ini) */
+/*
+ * 3. ATURAN UNTUK JAGA-JAGA (SOLUSI CADANGAN)
+ * Ini nargetin KALO 'react-to-print' GAGAL dan nge-print 1 window
+ */
 @media print {
+  /* Atur ukuran kertas */
   @page {
     size: 58mm auto;
     margin: 0 !important;
+  }
+
+  /* Sembunyikan semua di 1 window */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Tampilkan struk & isinya di 1 window */
+  #struk-print-area,
+  #struk-print-area * {
+    visibility: visible !important;
+  }
+
+  /* "Buka" div struk-nya di 1 window */
+  #struk-print-area {
+    position: static !important;
+    height: auto !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
   }
 }
