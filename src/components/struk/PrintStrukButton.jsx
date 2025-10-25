@@ -5,7 +5,6 @@ import { useReactToPrint } from "react-to-print";
 import { Button } from "@/components/ui/Button.jsx";
 import { Printer } from "lucide-react";
 import { toast } from "sonner";
-import "@/styles/print.css";
 
 function PrintStrukButton({ componentRef, disabled }) {
   const handlePrint = useReactToPrint({
