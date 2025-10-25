@@ -97,7 +97,7 @@
     visibility: hidden !important;
   }
 
-  /* Tampilkan area print & semua isinya */
+  /* Tampilkan area print & semua isinya (INI VERSI YANG BENAR) */
   #struk-print-area,
   #struk-print-area * {
     visibility: visible !important;
