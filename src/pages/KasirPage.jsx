@@ -350,23 +350,30 @@ function KasirPage() {
   }, [location.state, location.pathname, navigate]);
 
   useEffect(() => {
-    // Reset status kesiapan setiap kali data transaksi berubah (atau hilang)
     setIsStrukReady(false);
-
     if (detailTransaksiSukses) {
-      // Beri jeda SANGAT SINGKAT (misal 100ms) agar komponen Struk
-      // sempat render dan menempelkan dirinya ke ref.
+      // Kita butuh jeda biar <Struk> (termasuk fetch identitasnya) selesai render
       const timer = setTimeout(() => {
-        if (strukRef.current) {
-          setIsStrukReady(true); // <-- NYALAKAN SAKLAR KESIAPAN
-          console.log("LOG: Komponen Struk siap, ref terpasang.");
+        // VVV CEK INNERHTML JUGA VVV
+        if (strukRef.current && strukRef.current.innerHTML !== "") {
+          console.log(
+            "STRUK READY CHECK: Ref ADA dan innerHTML ADA. Siap print."
+          );
+          setIsStrukReady(true); // <-- Baru set ready
         } else {
-          console.error("ERROR: Ref struk masih kosong setelah jeda render.");
-          toast.warning("Komponen struk gagal dimuat, coba refresh.");
+          console.error("ERROR: Ref struk masih kosong atau innerHTML kosong.");
+          // Coba panggil lagi setelah jeda tambahan (opsional, tapi bisa bantu)
+          setTimeout(() => {
+            if (strukRef.current && strukRef.current.innerHTML !== "") {
+              console.log("STRUK READY CHECK (Percobaan ke-2): OK.");
+              setIsStrukReady(true);
+            } else {
+              console.error("ERROR: Ref struk TETAP kosong.");
+            }
+          }, 1000); // Jeda tambahan 1 detik
         }
-      }, 100); // Jeda 100 milidetik (bisa disesuaikan jika perlu)
-
-      // Jangan lupa bersihkan timeout jika komponen unmount atau data berubah lagi
+        // ^^^ SELESAI ^^^
+      }, 500); // <-- Jeda awal 500ms (naikin dari 100)
       return () => clearTimeout(timer);
     }
   }, [detailTransaksiSukses]);
@@ -547,17 +554,15 @@ function KasirPage() {
               </Button>
             </CardContent>
           </Card>{" "}
-          {/* <-- Akhir Card Sukses */}
-          {/* DIV TERSEMBUNYI KHUSUS UNTUK PRINT */}
           <div
-            id="struk-print-area" // ID untuk CSS Print
-            className="absolute -left-[9999px] top-0" // Cara sembunyikan standar
+            id="struk-print-area" // <-- ID (sesuai CSS)
+            className="hidden print:block" // <-- Sembunyi di layar, tampil pas print
             aria-hidden="true"
           >
             <div ref={strukRef}>
               {" "}
-              {/* Ref untuk PrintStrukButton */}
-              {detailTransaksiSukses && ( // Render Struk lagi
+              {/* Ref di sini */}
+              {detailTransaksiSukses && (
                 <Struk
                   transaksi={detailTransaksiSukses}
                   pengaturan={authState.pengaturan}
