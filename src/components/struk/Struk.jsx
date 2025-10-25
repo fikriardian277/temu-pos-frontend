@@ -76,7 +76,7 @@ const Struk = React.forwardRef(({ transaksi, pengaturan }, ref) => {
   return (
     <div
       ref={ref}
-      className="bg-white text-black font-mono text-[10px] w-[220px] mx-auto p-1 leading-tight"
+      className="bg-white text-black font-mono text-[11px] w-[220px] mx-auto p-1 leading-tight"
     >
       <style>{`
         @page { size: 58mm auto; margin: 0; }
