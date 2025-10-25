@@ -14,24 +14,27 @@ function PrintStrukButton({ componentRef, disabled }) {
 
     // --- ini tambahan penting ---
     pageStyle: `
-    @page { size: 58mm auto; margin: 0 !important; }
+      @page { size: 58mm auto; margin: 0 !important; }
 
-    body.print-struk-body * {
-      visibility: hidden !important;
-    }
+      /* SEMUA elemen disembunyikan */
+      body * {
+        visibility: hidden !important;
+      }
 
-    body.print-struk-body #struk-print-area,
-    body.print-struk-body #struk-print-area * {
-      visibility: visible !important;
-    }
+      /* TAPI area struk tetap kelihatan */
+      #struk-print-area, #struk-print-area * {
+        visibility: visible !important;
+      }
 
-    body.print-struk-body #struk-print-area {
-      height: auto !important;
-      opacity: 1 !important;
-      pointer-events: auto !important;
-      position: static !important;
-    }
-  `,
+      /* Pastikan area struk tampil normal */
+      #struk-print-area {
+        position: static !important;
+        height: auto !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        overflow: visible !important;
+      }
+    `,
 
     onPrintError: (error) => {
       console.error("REACT-TO-PRINT ERROR:", error);
