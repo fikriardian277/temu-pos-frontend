@@ -11,7 +11,17 @@ function PrintStrukButton({ componentRef, disabled }) {
     // VVV INI KODE ASLI LU YANG JALAN (meski sintaksnya aneh) VVV
     contentRef: componentRef,
     // ^^^ KITA TETAP PAKAI INI ^^^
-
+    onBeforeGetContent: () => {
+      return new Promise((resolve) => {
+        // Kasih jeda. 300ms atau 500ms harusnya cukup
+        setTimeout(() => {
+          console.log(
+            "onBeforeGetContent: Jeda 300ms, kasih waktu CSS @media print..."
+          );
+          resolve();
+        }, 300); // <-- Coba 300ms dulu.
+      });
+    },
     documentTitle: "struk-transaksi",
     removeAfterPrint: false,
     onPrintError: (error) => {

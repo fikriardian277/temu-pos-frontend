@@ -90,7 +90,7 @@
 
   /* 5️⃣ pastikan struk muncul di posisi atas */
   #struk-print-area {
-    position: static !important;
+    position: absolute !important;
     left: auto;
     top: auto;
     width: 100%;

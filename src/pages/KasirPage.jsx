@@ -555,7 +555,7 @@ function KasirPage() {
             className="absolute left-0 top-0 h-0 w-full overflow-hidden opacity-0" // <-- HIDING CLASS di sini
             aria-hidden="true"
           >
-            {detailTransaksiSukses && ( // Render <Struk> langsung di dalemnya
+            {detailTransaksiSukses && ( // Render Struk langsung di dalemnya
               <Struk
                 transaksi={detailTransaksiSukses}
                 pengaturan={authState.pengaturan}
