@@ -64,45 +64,47 @@
 @tailwind utilities;
 
 @media print {
-  /* 1. Atur Kertas & Hapus Margin Browser */
+  /* Aturan @page (penting untuk 58mm & margin 0) */
   @page {
     size: 58mm auto;
     margin: 0 !important;
   }
 
-  /* 2. Pastikan Body Bersih */
+  /* Sembunyikan SEMUA elemen body secara default */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Tampilkan HANYA elemen struk dan SEMUA ISINYA */
+  /* Kita pakai ID 'struk-print-area' */
+  #struk-print-area,
+  #struk-print-area * {
+    visibility: visible;
+  }
+
+  /* Posisikan struk di pojok kiri atas halaman print */
+  #struk-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  /* Pastikan body juga bersih */
   body {
     margin: 0 !important;
     padding: 0 !important;
     background: none !important;
   }
 
-  /* 3. Sembunyikan SEMUA anak body KECUALI struk */
-  body > *:not(#struk-print-area) {
-    display: none !important;
-  }
-
-  /* 4. Sembunyikan elemen umum lain (jaga-jaga) */
+  /* Sembunyikan elemen umum lain (jaga-jaga) */
   header,
   nav,
   aside,
   button,
   [role="dialog"],
+  footer,
   [data-radix-popper-content-wrapper] {
     display: none !important;
-  }
-
-  /* 5. Tampilkan HANYA area print yang kita mau */
-  #struk-print-area {
-    display: block !important; /* Paksa tampil */
-    position: static !important; /* Hapus positioning aneh */
-    width: 100% !important; /* Lebar ikut @page */
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-  /* 6. Pastikan isinya juga tampil */
-  #struk-print-area * {
-    display: revert !important;
-    visibility: visible !important;
   }
 }

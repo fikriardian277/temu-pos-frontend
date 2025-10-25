@@ -1,4 +1,4 @@
-// src/components/struk/PrintStrukButton.jsx (VERSI AWAL YANG PRINT ASLINYA JALAN)
+// src/components/struk/PrintStrukButton.jsx (VERSI AWAL)
 
 import React from "react";
 import { useReactToPrint } from "react-to-print";
@@ -8,23 +8,11 @@ import { toast } from "sonner"; // <-- Pastikan ini di-import
 
 function PrintStrukButton({ componentRef, disabled }) {
   const handlePrint = useReactToPrint({
-    // VVV INI KODE ASLI LU YANG JALAN (meski sintaksnya aneh) VVV
+    // Prop 'contentRef' (v2) diisi langsung
     contentRef: componentRef,
-    // ^^^ KITA TETAP PAKAI INI ^^^
-    onBeforeGetContent: () => {
-      return new Promise((resolve) => {
-        // Jeda 250ms (kasih waktu browser ngerender 'display: block')
-        setTimeout(() => {
-          console.log(
-            "onBeforeGetContent: Jeda 250ms selesai, ambil konten..."
-          );
-          resolve();
-        }, 250); // Coba 250ms, bisa dinaikin (misal 500) kalau masih gagal
-      });
-    },
+
     onAfterPrint: () => {
       console.log("Selesai print");
-      // ... (timeout kamu) ...
     },
     documentTitle: "struk-transaksi",
     removeAfterPrint: false,
@@ -34,11 +22,10 @@ function PrintStrukButton({ componentRef, disabled }) {
     },
   });
 
-  // Bagian return (tombol) ini juga UDAH BENER
   return (
     <Button
       onClick={() => {
-        // Cek dulu ref-nya ada DAN isinya gak kosong
+        // Pengecekan ref di onClick
         if (componentRef?.current && componentRef.current.innerHTML !== "") {
           handlePrint(); // <-- Panggil fungsi print
         } else {
