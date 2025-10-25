@@ -488,7 +488,7 @@ function KasirPage() {
           <CardContent>
             {/* Tampilkan Struk HANYA JIKA data siap */}
             {detailTransaksiSukses && (
-              <div className="border rounded-lg my-4 bg-muted/30 p-2">
+              <div className="border rounded-lg my-4 bg-muted/30 p-2 print-area">
                 <div className="max-h-64 overflow-y-auto">
                   <div className="w-[220px] mx-auto">
                     <Struk

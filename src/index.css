@@ -62,3 +62,24 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@media print {
+  /* Sembunyikan semua dulu */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* Tampilkan hanya area struk */
+  .print-area,
+  .print-area * {
+    visibility: visible !important;
+  }
+
+  /* Pastikan struk tetap di posisi awal */
+  .print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}
