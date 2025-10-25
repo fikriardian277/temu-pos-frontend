@@ -1,4 +1,5 @@
-// src/components/struk/PrintStrukButton.jsx (FIX: use onBeforeGetContent -> return Promise)
+// src/components/struk/PrintStrukButton.jsx (VERSI FINAL, HANYA pageStyle)
+
 import React from "react";
 import { useReactToPrint } from "react-to-print";
 import { Button } from "@/components/ui/Button.jsx";
@@ -11,50 +12,22 @@ function PrintStrukButton({ componentRef, disabled }) {
     documentTitle: "struk-transaksi",
     removeAfterPrint: false,
 
-    // PENTING: onBeforeGetContent harus mengembalikan Promise
-    onBeforeGetContent: () =>
-      new Promise((resolve) => {
-        try {
-          // sembunyikan semua elemen selain #struk-print-area
-          const children = Array.from(document.body.children);
-          children.forEach((el) => {
-            if (el.id !== "struk-print-area") {
-              el.classList.add("hide-during-print");
-            }
-          });
-
-          // beri waktu singkat supaya DOM paint (500ms cukup)
-          // kalau struk sudah siap lebih cepat, bisa reduce delay
-          setTimeout(() => {
-            resolve();
-          }, 120); // 120ms biasanya cukup; bisa disesuaikan
-        } catch (e) {
-          // jika error, resolve agar print tidak terblokir
-          console.error("onBeforeGetContent error:", e);
-          resolve();
-        }
-      }),
-
-    // kembalikan DOM setelah selesai print
-    onAfterPrint: () => {
-      try {
-        const hidden = document.querySelectorAll(".hide-during-print");
-        hidden.forEach((el) => el.classList.remove("hide-during-print"));
-      } catch (e) {
-        console.error("onAfterPrint cleanup error:", e);
-      }
-    },
+    // HAPUS 'onBeforeGetContent'
+    // HAPUS 'onAfterPrint'
 
     // pageStyle untuk memaksa aturan di iframe print
     pageStyle: `
+      /* 1. Atur halaman */
       @page { size: 58mm auto; margin: 0 !important; }
       body { margin: 0 !important; padding: 0 !important; background: none !important; }
 
-      /* Hide everything by default inside iframe, then reveal #struk-print-area */
+      /* 2. Sembunyikan SEMUA di iframe */
       body * { visibility: hidden !important; }
+
+      /* 3. Tampilkan HANYA struk & isinya */
       #struk-print-area, #struk-print-area * { visibility: visible !important; }
 
-      /* Make sure struk layout is static and visible */
+      /* 4. "Buka" div struknya (lawan h-0, opacity-0) */
       #struk-print-area {
         position: static !important;
         height: auto !important;
@@ -63,24 +36,17 @@ function PrintStrukButton({ componentRef, disabled }) {
         overflow: visible !important;
         display: block !important;
       }
-
-      /* Safety: ensure hidden class really removed from print */
-      .hide-during-print { display: none !important; }
+      
+      /* 5. HAPUS .hide-during-print (gak perlu) */
     `,
 
     onPrintError: (error) => {
       console.error("REACT-TO-PRINT ERROR:", error);
       toast.error("Gagal menyiapkan print. Coba lagi.");
-      // restore jika terjadi error
-      try {
-        const hidden = document.querySelectorAll(".hide-during-print");
-        hidden.forEach((el) => el.classList.remove("hide-during-print"));
-      } catch (e) {
-        console.error("cleanup after error failed", e);
-      }
     },
   });
 
+  // Return button-nya (biarin, udah bener)
   return (
     <Button
       onClick={() => {
@@ -89,11 +55,8 @@ function PrintStrukButton({ componentRef, disabled }) {
           toast.error("Struk belum siap dicetak.");
           return;
         }
-        // panggil print (handlePrint mengembalikan void/usual)
         try {
-          const res = handlePrint();
-          // handlePrint might or might not return a promise; no reliance on .then here
-          // we rely on onBeforeGetContent / onAfterPrint lifecycle for DOM changes
+          handlePrint();
         } catch (e) {
           console.error("invoke handlePrint error:", e);
           toast.error("Gagal memulai print.");
