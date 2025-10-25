@@ -1,5 +1,4 @@
-// src/components/struk/PrintStrukButton.jsx (VERSI bodyClass)
-
+// ✅ src/components/struk/PrintStrukButton.jsx (FINAL FIX)
 import React from "react";
 import { useReactToPrint } from "react-to-print";
 import { Button } from "@/components/ui/Button.jsx";
@@ -8,15 +7,24 @@ import { toast } from "sonner";
 
 function PrintStrukButton({ componentRef, disabled }) {
   const handlePrint = useReactToPrint({
-    // 1. TETAP PAKAI contentRef
     contentRef: componentRef,
-
-    // 2. PAKAI bodyClass (Ini yang ngebenerin bug h-0)
-    bodyClass: "print-struk-body",
-
-    // 3. HAPUS SEMUA onBeforeGetContent / onAfterPrint
-
     documentTitle: "struk-transaksi",
+
+    // ⚡ PENTING: tambahkan pageStyle agar bodyClass dijamin aktif
+    bodyClass: "print-struk-body",
+    pageStyle: `
+      @page { size: 58mm auto; margin: 0 !important; }
+      body.print-struk-body * { visibility: hidden !important; }
+      body.print-struk-body #struk-print-area,
+      body.print-struk-body #struk-print-area * { visibility: visible !important; }
+      body.print-struk-body #struk-print-area {
+        height: auto !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        position: static !important;
+      }
+    `,
+
     removeAfterPrint: false,
     onPrintError: (error) => {
       console.error("REACT-TO-PRINT ERROR:", error);
@@ -24,7 +32,6 @@ function PrintStrukButton({ componentRef, disabled }) {
     },
   });
 
-  // 4. Return button-nya (biarin, udah bener)
   return (
     <Button
       onClick={() => {
@@ -37,7 +44,7 @@ function PrintStrukButton({ componentRef, disabled }) {
       }}
       variant="outline"
       className="w-full"
-      disabled={disabled} // <-- JANGAN LUPA INI
+      disabled={disabled}
     >
       <Printer className="mr-2 h-4 w-4" />
       Cetak Struk
