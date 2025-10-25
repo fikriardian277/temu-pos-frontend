@@ -548,7 +548,14 @@ function KasirPage() {
           {/* DIV TERSEMBUNYI KHUSUS UNTUK PRINT */}
           <div
             id="struk-print-area" // ID untuk CSS Print
-            className="absolute -left-[9999px] top-0" // Cara sembunyikan default
+            style={{
+              position: "fixed",
+              top: 0,
+              left: 0,
+              opacity: 0,
+              pointerEvents: "none",
+              zIndex: -1,
+            }}
             aria-hidden="true"
           >
             <div ref={strukRef}>
