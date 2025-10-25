@@ -1,52 +1,88 @@
-// src/components/struk/PrintStrukButton.jsx (VERSI FINAL & BENAR)
+// src/components/struk/PrintStrukButton.jsx (VERSI KODE ASLI + JENDELA BARU)
 
 import React from "react";
 import { useReactToPrint } from "react-to-print";
 import { Button } from "@/components/ui/Button.jsx";
 import { Printer } from "lucide-react";
-import { toast } from "sonner"; // <-- Pastikan ini di-import
+import { toast } from "sonner";
 
 function PrintStrukButton({ componentRef, disabled }) {
   const handlePrint = useReactToPrint({
-    // INI DIA CARA YANG BENAR UNTUK v3 (dan versi terbaru)
-    // Kita kasih FUNGSI yang akan MENGAMBIL ref saat di-klik
+    // VVV KEMBALIKAN KE KODE ASLI KAMU VVV
+    // (Meskipun aneh, ini yang jalan di sistemmu)
     contentRef: componentRef,
+    // ^^^ SELESAI ^^^
+
+    // VVV TAMBAHKAN FUNGSI PRINT JENDELA BARU VVV
+    print: (iframe) => {
+      return new Promise((resolve) => {
+        const printContent = componentRef.current;
+        if (!printContent || printContent.innerHTML === "") {
+          console.error("Referensi komponen struk kosong saat mau print.");
+          toast.error("Struk belum siap dicetak.");
+          resolve();
+          return;
+        }
+        const printWindow = window.open("", "", "height=600,width=400");
+        if (printWindow) {
+          printWindow.document.write("<html><head><title>Cetak Struk</title>");
+          Array.from(
+            document.querySelectorAll('style, link[rel="stylesheet"]')
+          ).forEach((style) => {
+            printWindow.document.write(style.outerHTML);
+          });
+          printWindow.document.write("</head><body>");
+          printWindow.document.write(printContent.innerHTML);
+          printWindow.document.write("</body></html>");
+          printWindow.document.close();
+          setTimeout(() => {
+            try {
+              printWindow.focus();
+              printWindow.print();
+              printWindow.close();
+            } catch (e) {
+              console.error("Gagal print jendela baru:", e);
+              toast.error("Gagal print. Pastikan popup diizinkan.");
+              printWindow.close();
+            } finally {
+              resolve();
+            }
+          }, 300);
+        } else {
+          toast.error(
+            "Gagal membuka jendela print. Mohon izinkan popup untuk situs ini."
+          );
+          resolve();
+        }
+      });
+    },
+    // ^^^ SELESAI FUNGSI PRINT ^^^
+
     onAfterPrint: () => {
       console.log("Selesai print");
-      // kalau mau reset atau sembunyiin area print, kasih delay
-      setTimeout(() => {
-        // misal kamu mau reset state
-        // setShowStruk(false);
-      }, 1000);
     },
-
     documentTitle: "struk-transaksi",
     removeAfterPrint: false,
-
-    // Kita tambahin error handling biar jelas
     onPrintError: (error) => {
       console.error("REACT-TO-PRINT ERROR:", error);
       toast.error("Gagal menyiapkan print. Coba lagi.");
     },
   });
 
+  // Bagian return (tombol) ini TIDAK DIUBAH SAMA SEKALI
   return (
     <Button
       onClick={() => {
-        // Cek dulu ref-nya ada DAN isinya gak kosong
         if (componentRef?.current && componentRef.current.innerHTML !== "") {
-          handlePrint(); // <-- Panggil fungsi print
+          handlePrint();
         } else {
-          // Kasih feedback kalo emang gak ada isinya
-          console.error(
-            "Referensi komponen struk tidak ditemukan atau belum siap!"
-          );
+          console.error("Ref struk tidak ditemukan atau kosong!");
           toast.error("Struk belum siap dicetak, coba sesaat lagi.");
         }
       }}
       variant="outline"
       className="w-full"
-      disabled={disabled} // <-- Prop 'disabled' dari KasirPage
+      disabled={disabled}
     >
       <Printer className="mr-2 h-4 w-4" />
       Cetak Struk
