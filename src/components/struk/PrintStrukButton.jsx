@@ -5,6 +5,7 @@ import { useReactToPrint } from "react-to-print";
 import { Button } from "@/components/ui/Button.jsx";
 import { Printer } from "lucide-react";
 import { toast } from "sonner";
+import "./index.css";
 
 function PrintStrukButton({ componentRef, disabled }) {
   const handlePrint = useReactToPrint({
@@ -22,6 +23,7 @@ function PrintStrukButton({ componentRef, disabled }) {
       console.error("REACT-TO-PRINT ERROR:", error);
       toast.error("Gagal menyiapkan print. Coba lagi.");
     },
+    copyStyles: true,
   });
 
   // 4. Return button-nya (biarin, udah bener)

@@ -78,18 +78,6 @@ const Struk = React.forwardRef(({ transaksi, pengaturan }, ref) => {
       ref={ref}
       className="bg-white text-black font-mono text-[11px] w-[220px] mx-auto p-1 leading-tight"
     >
-      <style>{`
-        @page { size: 58mm auto; margin: 0; }
-        @media print { body { margin: 0; } }
-        .item-row { display: flex; justify-content: space-between; border-bottom: 1px dashed #ccc; padding: 1px 0; align-items: center; /* Tambah align center */ }
-    .item-name { flex-grow: 1; padding-right: 4px; word-break: break-word; }
-    .item-qty { width: 30px; /* Perkecil dikit */ text-align: center; flex-shrink: 0; }
-    .item-price { width: 55px; /* Lebar kolom harga */ text-align: right; flex-shrink: 0; padding-left: 4px; } /* Kolom harga baru */
-        .total-row { display: flex; justify-content: space-between; }
-        .signature-box { margin-top: 15px; display: flex; justify-content: space-between; text-align: center; font-size: 9px; }
-        .signature-col { width: 45%; }
-      `}</style>
-
       {/* Header (Kondisional) */}
       <div className="text-center mb-1">
         {loadingIdentity ? (
