@@ -550,19 +550,18 @@ function KasirPage() {
           {/* <-- Akhir Card Sukses */}
           {/* DIV TERSEMBUNYI KHUSUS UNTUK PRINT */}
           <div
-            id="struk-print-area"
-            ref={strukRef}
-            // VVV GANTI INI VVV
+            id="struk-print-area" // <-- ID di sini
+            ref={strukRef} // <-- REF di sini // VVV Pastikan class-nya ini VVV
             className="absolute left-0 top-0 h-0 w-full opacity-0 pointer-events-none"
-            // ^^^ HAPUS overflow-hidden, GANTI pointer-events-none ^^^
             aria-hidden="true"
           >
-            {detailTransaksiSukses && ( // Render Struk langsung di dalemnya
+            {" "}
+            {detailTransaksiSukses && ( // Render <Struk> langsung di dalemnya
               <Struk
                 transaksi={detailTransaksiSukses}
                 pengaturan={authState.pengaturan}
               />
-            )}
+            )}{" "}
           </div>
           {/* AKHIR DIV TERSEMBUNYI */}
         </> // <-- Akhir Fragment

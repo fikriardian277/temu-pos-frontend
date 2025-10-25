@@ -1,6 +1,6 @@
-/* file: src/index.css */
+/* src/index.css (VERSI FINAL - ANTI TYPO) */
 
-/* HAPUS BLOK @layer base YANG LAMA, GANTI DENGAN INI */
+/* 1. ATURAN DASAR TAILWIND & TEMA */
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -9,7 +9,7 @@
     --card-foreground: 222.2 47.4% 11.2%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 47.4% 11.2%;
-    --primary: 202 88% 49%; /* Ini warna sky-500 yang kita pilih */
+    --primary: 202 88% 49%;
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -23,11 +23,11 @@
     --input: 214.3 31.8% 91.4%;
     --ring: 222.2 47.4% 11.2%;
     --radius: 0.5rem;
-    --chart-1: 202 88% 49%; /* sky */
-    --chart-2: 142 70% 45%; /* green */
-    --chart-3: 48 96% 50%; /* yellow */
-    --chart-4: 0 84% 60%; /* red */
-    --chart-5: 244 91% 59%; /* indigo */
+    --chart-1: 202 88% 49%;
+    --chart-2: 142 70% 45%;
+    --chart-3: 48 96% 50%;
+    --chart-4: 0 84% 60%;
+    --chart-5: 244 91% 59%;
   }
 
   .dark {
@@ -37,7 +37,7 @@
     --card-foreground: 213 31% 91%;
     --popover: 224 71% 4%;
     --popover-foreground: 213 31% 91%;
-    --primary: 202 88% 49%; /* Ini warna sky-500 yang kita pilih */
+    --primary: 202 88% 49%;
     --primary-foreground: 210 20% 98%;
     --secondary: 215 28% 17%;
     --secondary-foreground: 210 20% 98%;
@@ -50,15 +50,14 @@
     --border: 215 28% 17%;
     --input: 215 28% 17%;
     --ring: 202 88% 49%;
-    --chart-1: 202 88% 49%; /* sky */
-    --chart-2: 142 70% 45%; /* green */
-    --chart-3: 48 96% 50%; /* yellow */
-    --chart-4: 0 84% 60%; /* red */
-    --chart-5: 244 91% 59%; /* indigo */
+    --chart-1: 202 88% 49%;
+    --chart-2: 142 70% 45%;
+    --chart-3: 48 96% 50%;
+    --chart-4: 0 84% 60%;
+    --chart-5: 244 91% 59%;
   }
 }
 
-/* PASTIKAN 3 BARIS INI TETAP ADA DI BAWAH BLOK @layer base */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
