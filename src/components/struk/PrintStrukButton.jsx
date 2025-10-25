@@ -13,7 +13,7 @@ function PrintStrukButton({ componentRef, disabled }) {
     contentRef: componentRef,
 
     documentTitle: "struk-transaksi",
-    removeAfterPrint: true,
+    removeAfterPrint: false,
 
     // Kita tambahin error handling biar jelas
     onPrintError: (error) => {
