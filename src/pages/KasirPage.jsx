@@ -513,8 +513,23 @@ function KasirPage() {
               {detailTransaksiSukses && (
                 <div className="mt-6 grid grid-cols-2 gap-4">
                   <PrintStrukButton
-                    componentRef={strukRef} // <-- Ref ke div tersembunyi
+                    componentRef={strukRef}
                     disabled={!isStrukReady}
+                    // VVV TAMBAH PROP INI VVV
+                    onBeforeGetContent={() => {
+                      return new Promise((resolve) => {
+                        // Coba jeda lebih lama (200ms)
+                        setTimeout(() => {
+                          console.log(
+                            "onBeforeGetContent: Jeda 200ms selesai."
+                          );
+                          resolve();
+                        }, 200); // <-- Jeda 200ms
+                      });
+                    }}
+                    // ^^^ SELESAI ^^^
+                    // pageStyle opsional, boleh dihapus kalau CSS @page di index.css udah cukup
+                    // pageStyle="@page { size: 58mm auto; margin: 0 !important; }"
                   />
                   <Button
                     onClick={handleKirimWA}
@@ -544,43 +559,23 @@ function KasirPage() {
               </Button>
             </CardContent>
           </Card>{" "}
-          {/* <-- Akhir Card Sukses */}
-          {/* DIV TERSEMBUNYI KHUSUS UNTUK PRINT */}
           <div
-            style={{
-              position: "absolute",
-              left: "-9999px",
-              top: 0,
-            }}
+            id="struk-print-area" // ID untuk CSS Print
+            className="absolute -left-[9999px] top-0" // Cara sembunyi standar
+            aria-hidden="true"
           >
-            {/* Ref tetap di div DALAM */}
-            <div ref={strukRef} className="print-area">
-              {/* VVV GANTI ISI INI SEMENTARA VVV */}
-              {detailTransaksiSukses ? (
-                <div
-                  style={{
-                    margin: "5mm",
-                    fontSize: "14px",
-                    fontFamily: "monospace",
-                    color: "black",
-                    background: "white",
-                    width: "50mm",
-                  }}
-                >
-                  <h1>--- TES PRINT ASLI ---</h1>
-                  <p>Invoice: {detailTransaksiSukses.invoice_code}</p>
-                  <p>
-                    Kalau ini KELUAR di kertas/PDF, masalahnya ada di komponen
-                    Struk.
-                  </p>
-                </div>
-              ) : (
-                <p>Data struk belum siap.</p>
+            {/* Ref dipasang di div DALAMNYA */}
+            <div ref={strukRef}>
+              {/* VVV BALIKIN KE KOMPONEN STRUK ASLI VVV */}
+              {detailTransaksiSukses && ( // Pastikan data ada
+                <Struk
+                  transaksi={detailTransaksiSukses}
+                  pengaturan={authState.pengaturan}
+                />
               )}
-              {/* ^^^ SELESAI PENGGANTIAN ^^^ */}
+              {/* ^^^ SELESAI ^^^ */}
             </div>
           </div>
-          {/* AKHIR DIV TERSEMBUNYI */}
         </> // <-- Akhir Fragment
       )}{" "}
       {/* <-- Akhir blok sukses transaksi */}
