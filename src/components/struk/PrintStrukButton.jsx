@@ -11,6 +11,14 @@ function PrintStrukButton({ componentRef, disabled }) {
     // INI DIA CARA YANG BENAR UNTUK v3 (dan versi terbaru)
     // Kita kasih FUNGSI yang akan MENGAMBIL ref saat di-klik
     contentRef: componentRef,
+    onAfterPrint: () => {
+      console.log("Selesai print");
+      // kalau mau reset atau sembunyiin area print, kasih delay
+      setTimeout(() => {
+        // misal kamu mau reset state
+        // setShowStruk(false);
+      }, 1000);
+    },
 
     documentTitle: "struk-transaksi",
     removeAfterPrint: false,
