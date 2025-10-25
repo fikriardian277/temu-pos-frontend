@@ -1,4 +1,4 @@
-// src/components/struk/PrintStrukButton.jsx (VERSI FINAL, HANYA pageStyle)
+// src/components/struk/PrintStrukButton.jsx (VERSI bodyClass)
 
 import React from "react";
 import { useReactToPrint } from "react-to-print";
@@ -8,63 +8,36 @@ import { toast } from "sonner";
 
 function PrintStrukButton({ componentRef, disabled }) {
   const handlePrint = useReactToPrint({
+    // 1. TETAP PAKAI contentRef
     contentRef: componentRef,
+
+    // 2. PAKAI bodyClass (Ini yang ngebenerin bug h-0)
+    bodyClass: "print-struk-body",
+
+    // 3. HAPUS SEMUA onBeforeGetContent / onAfterPrint
+
     documentTitle: "struk-transaksi",
     removeAfterPrint: false,
-
-    // HAPUS 'onBeforeGetContent'
-    // HAPUS 'onAfterPrint'
-
-    // pageStyle untuk memaksa aturan di iframe print
-    pageStyle: `
-      /* 1. Atur halaman */
-      @page { size: 58mm auto; margin: 0 !important; }
-      body { margin: 0 !important; padding: 0 !important; background: none !important; }
-
-      /* 2. Sembunyikan SEMUA di iframe */
-      body * { visibility: hidden !important; }
-
-      /* 3. Tampilkan HANYA struk & isinya */
-      #struk-print-area, #struk-print-area * { visibility: visible !important; }
-
-      /* 4. "Buka" div struknya (lawan h-0, opacity-0) */
-      #struk-print-area {
-        position: static !important;
-        height: auto !important;
-        opacity: 1 !important;
-        pointer-events: auto !important;
-        overflow: visible !important;
-        display: block !important;
-      }
-      
-      /* 5. HAPUS .hide-during-print (gak perlu) */
-    `,
-
     onPrintError: (error) => {
       console.error("REACT-TO-PRINT ERROR:", error);
       toast.error("Gagal menyiapkan print. Coba lagi.");
     },
   });
 
-  // Return button-nya (biarin, udah bener)
+  // 4. Return button-nya (biarin, udah bener)
   return (
     <Button
       onClick={() => {
-        if (!componentRef?.current || componentRef.current.innerHTML === "") {
-          console.error("Ref struk kosong atau belum siap!");
-          toast.error("Struk belum siap dicetak.");
-          return;
-        }
-        try {
+        if (componentRef?.current && componentRef.current.innerHTML !== "") {
           handlePrint();
-        } catch (e) {
-          console.error("invoke handlePrint error:", e);
-          toast.error("Gagal memulai print.");
+        } else {
+          console.error("Ref struk kosong!");
+          toast.error("Struk belum siap dicetak.");
         }
       }}
       variant="outline"
       className="w-full"
-      disabled={disabled}
+      disabled={disabled} // <-- JANGAN LUPA INI
     >
       <Printer className="mr-2 h-4 w-4" />
       Cetak Struk

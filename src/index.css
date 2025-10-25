@@ -63,3 +63,50 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * 2. ATURAN PRINT "NUKLIR" UNTUK IFRAME
+ */
+
+/* * Sembunyikan SEMUA direct children dari <body>
+ * (Ini akan nyembunyiin <div id="root">, <aside>, dll.)
+*/
+body.print-struk-body > * {
+  display: none !important;
+}
+
+/* * KECUALIKAN #struk-print-area dan "BUKA" dia
+ * Ini LEBIH KUAT dari aturan di atas dan LEBIH KUAT dari 'h-0'
+*/
+body.print-struk-body #struk-print-area {
+  display: block !important;
+  height: auto !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  position: static !important;
+  visibility: visible !important;
+}
+
+/* * Tampilkan juga SEMUA anak dari struk
+ * (Jaga-jaga kalo 'display: none' diwariskan)
+*/
+body.print-struk-body #struk-print-area * {
+  display: block !important;
+  visibility: visible !important;
+}
+
+/*
+ * 3. ATURAN @page (Biarkan ini)
+ */
+@media print {
+  @page {
+    size: 58mm auto;
+    margin: 0 !important;
+  }
+
+  /* Reset body-nya iframe */
+  body.print-struk-body {
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+}
