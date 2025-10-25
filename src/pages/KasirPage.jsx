@@ -549,17 +549,35 @@ function KasirPage() {
           <div
             style={{
               position: "absolute",
-              left: "-9999px", // Sembunyi di luar layar tapi tetap bisa di-render
+              left: "-9999px",
               top: 0,
             }}
           >
+            {/* Ref tetap di div DALAM */}
             <div ref={strukRef} className="print-area">
-              {detailTransaksiSukses && (
-                <Struk
-                  transaksi={detailTransaksiSukses}
-                  pengaturan={authState.pengaturan}
-                />
+              {/* VVV GANTI ISI INI SEMENTARA VVV */}
+              {detailTransaksiSukses ? (
+                <div
+                  style={{
+                    margin: "5mm",
+                    fontSize: "14px",
+                    fontFamily: "monospace",
+                    color: "black",
+                    background: "white",
+                    width: "50mm",
+                  }}
+                >
+                  <h1>--- TES PRINT ASLI ---</h1>
+                  <p>Invoice: {detailTransaksiSukses.invoice_code}</p>
+                  <p>
+                    Kalau ini KELUAR di kertas/PDF, masalahnya ada di komponen
+                    Struk.
+                  </p>
+                </div>
+              ) : (
+                <p>Data struk belum siap.</p>
               )}
+              {/* ^^^ SELESAI PENGGANTIAN ^^^ */}
             </div>
           </div>
           {/* AKHIR DIV TERSEMBUNYI */}
