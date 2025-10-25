@@ -501,6 +501,7 @@ function KasirPage() {
                   <div className="max-h-64 overflow-y-auto">
                     <div className="w-[220px] mx-auto">
                       <Struk
+                        // REF DIHAPUS DARI PREVIEW INI
                         transaksi={detailTransaksiSukses}
                         pengaturan={authState.pengaturan}
                       />
@@ -512,24 +513,11 @@ function KasirPage() {
               {/* Tombol Print & WA */}
               {detailTransaksiSukses && (
                 <div className="mt-6 grid grid-cols-2 gap-4">
+                  {/* Kembali ke PrintStrukButton */}
                   <PrintStrukButton
-                    componentRef={strukRef}
+                    componentRef={strukRef} // <-- Ref ke div tersembunyi
                     disabled={!isStrukReady}
-                    // VVV TAMBAH PROP INI VVV
-                    onBeforeGetContent={() => {
-                      return new Promise((resolve) => {
-                        // Coba jeda lebih lama (200ms)
-                        setTimeout(() => {
-                          console.log(
-                            "onBeforeGetContent: Jeda 200ms selesai."
-                          );
-                          resolve();
-                        }, 200); // <-- Jeda 200ms
-                      });
-                    }}
-                    // ^^^ SELESAI ^^^
-                    // pageStyle opsional, boleh dihapus kalau CSS @page di index.css udah cukup
-                    // pageStyle="@page { size: 58mm auto; margin: 0 !important; }"
+                    // Hapus onBeforePrint atau onBeforeGetContent jika ada
                   />
                   <Button
                     onClick={handleKirimWA}
@@ -559,23 +547,25 @@ function KasirPage() {
               </Button>
             </CardContent>
           </Card>{" "}
+          {/* <-- Akhir Card Sukses */}
+          {/* DIV TERSEMBUNYI KHUSUS UNTUK PRINT */}
           <div
             id="struk-print-area" // ID untuk CSS Print
-            className="absolute -left-[9999px] top-0" // Cara sembunyi standar
+            className="absolute -left-[9999px] top-0" // Cara sembunyikan standar
             aria-hidden="true"
           >
-            {/* Ref dipasang di div DALAMNYA */}
             <div ref={strukRef}>
-              {/* VVV BALIKIN KE KOMPONEN STRUK ASLI VVV */}
-              {detailTransaksiSukses && ( // Pastikan data ada
+              {" "}
+              {/* Ref untuk PrintStrukButton */}
+              {detailTransaksiSukses && ( // Render Struk lagi
                 <Struk
                   transaksi={detailTransaksiSukses}
                   pengaturan={authState.pengaturan}
                 />
               )}
-              {/* ^^^ SELESAI ^^^ */}
             </div>
           </div>
+          {/* AKHIR DIV TERSEMBUNYI */}
         </> // <-- Akhir Fragment
       )}{" "}
       {/* <-- Akhir blok sukses transaksi */}
