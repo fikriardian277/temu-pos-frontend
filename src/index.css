@@ -1,8 +1,9 @@
-/* src/index.css (VERSI FINAL - ANTI TYPO) */
+/* src/index.css (VERSI bodyClass) */
 
-/* 1. ATURAN DASAR TAILWIND & TEMA */
+/* 1. ATURAN DASAR TAILWIND & TEMA (Biarkan) */
 @layer base {
   :root {
+    /* ... (semua variabel --background, --primary, dll) ... */
     --background: 0 0% 100%;
     --foreground: 222.2 47.4% 11.2%;
     --card: 0 0% 100%;
@@ -31,6 +32,7 @@
   }
 
   .dark {
+    /* ... (semua variabel .dark) ... */
     --background: 224 71% 4%;
     --foreground: 213 31% 91%;
     --card: 224 71% 4%;
@@ -62,43 +64,31 @@
 @tailwind components;
 @tailwind utilities;
 
-/* 2. ATURAN BARU UNTUK JAVASCRIPT */
-/* Ini "membuka" div struk pas dikasih class .print-ready */
-#struk-print-area.print-ready {
-  /* Paksa "buka" */
+/* * 2. ATURAN PRINT BARU 
+ * Ini HANYA akan aktif di jendela print (iframe)
+*/
+
+/* Reset body di jendela print */
+body.print-struk-body {
+  margin: 0 !important;
+  padding: 0 !important;
+  background: none !important;
+}
+
+/* * "BUKA" div struk-nya di jendela print.
+ * Aturan ini (body + id) LEBIH KUAT daripada class Tailwind (h-0)
+*/
+body.print-struk-body #struk-print-area {
   height: auto !important;
   opacity: 1 !important;
   pointer-events: auto !important;
-
-  /* Paksa di kiri atas halaman */
-  position: absolute !important;
-  left: 0 !important;
-  top: 0 !important;
+  position: static !important; /* Biar ngalir normal di iframe */
 }
 
-/* 3. ATURAN PRINT BAWAAN */
+/* 3. ATURAN @page (Biarkan ini) */
 @media print {
-  /* Atur ukuran kertas */
   @page {
     size: 58mm auto;
     margin: 0 !important;
-  }
-
-  /* Bersihkan body */
-  body {
-    margin: 0 !important;
-    padding: 0 !important;
-    background: none !important;
-  }
-
-  /* Sembunyikan semua elemen di body */
-  body * {
-    visibility: hidden !important;
-  }
-
-  /* Tampilkan area print & semua isinya (INI VERSI YANG BENAR) */
-  #struk-print-area,
-  #struk-print-area * {
-    visibility: visible !important;
   }
 }

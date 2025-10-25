@@ -550,13 +550,13 @@ function KasirPage() {
           {/* <-- Akhir Card Sukses */}
           {/* DIV TERSEMBUNYI KHUSUS UNTUK PRINT */}
           <div
-            id="struk-print-area" // <-- ID di sini
-            ref={strukRef} // <-- REF di sini // VVV Pastikan class-nya ini VVV
+            id="struk-print-area" // <-- ID buat ditarget CSS
+            ref={strukRef} // <-- Ref buat diambil react-to-print // Biarin class ini, ini udah bener buat nyembunyiin di layar
             className="absolute left-0 top-0 h-0 w-full opacity-0 pointer-events-none"
             aria-hidden="true"
           >
             {" "}
-            {detailTransaksiSukses && ( // Render <Struk> langsung di dalemnya
+            {detailTransaksiSukses && (
               <Struk
                 transaksi={detailTransaksiSukses}
                 pengaturan={authState.pengaturan}

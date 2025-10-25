@@ -1,4 +1,4 @@
-// src/components/struk/PrintStrukButton.jsx (VERSI PAKAI JS CLASS)
+// src/components/struk/PrintStrukButton.jsx (VERSI bodyClass)
 
 import React from "react";
 import { useReactToPrint } from "react-to-print";
@@ -8,36 +8,13 @@ import { toast } from "sonner";
 
 function PrintStrukButton({ componentRef, disabled }) {
   const handlePrint = useReactToPrint({
-    // 1. WAJIB TETAP PAKE contentRef
-    contentRef: componentRef, // 2. MODIFIKASI onBeforeGetContent
+    // 1. TETAP PAKAI contentRef (karena versi lu wajib pake ini)
+    contentRef: componentRef, // 2. TAMBAHKAN PROP INI // Ini akan nambah class 'print-struk-body' ke <body> // di JENDELA PRINT (iframe)
 
-    onBeforeGetContent: () => {
-      return new Promise((resolve) => {
-        const el = componentRef.current;
-        if (el) {
-          // TAMBAH CLASS SECARA PAKSA
-          el.classList.add("print-ready");
-          console.log("Menyiapkan struk: class 'print-ready' ditambahkan.");
-        } // TETAP KASIH JEDA
-
-        setTimeout(() => {
-          console.log("Jeda 300ms selesai, struk harusnya siap total.");
-          resolve();
-        }, 300); // <-- Coba 300ms atau 500ms
-      });
-    }, // 3. TAMBAHKAN onAfterPrint (PENTING!)
-
-    onAfterPrint: () => {
-      console.log("Selesai print, membersihkan class...");
-      const el = componentRef.current;
-      if (el) {
-        // HAPUS CLASS-nya lagi biar sembunyi
-        el.classList.remove("print-ready");
-      }
-    },
+    bodyClass: "print-struk-body", // 3. HAPUS SEMUA JAVASCRIPT DELAY (PENTING!) // HAPUS onBeforeGetContent // HAPUS onAfterPrint
 
     documentTitle: "struk-transaksi",
-    removeAfterPrint: false,
+    removeAfterPrint: false, // Biarin
     onPrintError: (error) => {
       console.error("REACT-TO-PRINT ERROR:", error);
       toast.error("Gagal menyiapkan print. Coba lagi.");
@@ -47,6 +24,7 @@ function PrintStrukButton({ componentRef, disabled }) {
   return (
     <Button
       onClick={() => {
+        // Pengecekan ini tetep penting
         if (componentRef?.current && componentRef.current.innerHTML !== "") {
           handlePrint();
         } else {
