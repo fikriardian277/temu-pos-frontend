@@ -1,6 +1,6 @@
-/* src/index.css (VERSI bodyClass) */
+/* src/index.css (VERSI FINAL - HANYA bodyClass) */
 
-/* 1. ATURAN DASAR TAILWIND & TEMA (Biarkan) */
+/* 1. ATURAN DASAR TAILWIND (Biarkan) */
 @layer base {
   :root {
     /* ... (semua variabel --background, --primary, dll) ... */
@@ -65,56 +65,40 @@
 @tailwind utilities;
 
 /*
- * 2. ATURAN UNTUK IFRAME (SOLUSI UTAMA)
- * Ini nargetin iframe yang dibuat 'react-to-print'
+ * 2. ATURAN UNTUK IFRAME PRINT (SOLUSI UTAMA)
  */
 
-/* Sembunyikan semua di iframe */
+/* * Sembunyikan SEMUA elemen di jendela print
+ * Kita pakai `visibility` karena `display: none` bikin ref-nya ilang
+*/
 body.print-struk-body * {
   visibility: hidden !important;
 }
 
-/* Tampilkan struk & isinya di iframe */
+/* * Tampilkan HANYA div struk dan semua isinya
+ * (Ini lebih kuat dari aturan 'hidden' di atas)
+*/
 body.print-struk-body #struk-print-area,
 body.print-struk-body #struk-print-area * {
   visibility: visible !important;
 }
 
-/* "Buka" div struk-nya di iframe (lawan h-0) */
+/* * "Buka" div struk-nya (override h-0, opacity-0)
+ * Ini harus nargetin #struk-print-area (tanpa *)
+*/
 body.print-struk-body #struk-print-area {
   height: auto !important;
   opacity: 1 !important;
   pointer-events: auto !important;
-  position: static !important;
+  position: static !important; /* Paksa jadi static biar ngalir di iframe */
 }
 
 /*
- * 3. ATURAN UNTUK JAGA-JAGA (SOLUSI CADANGAN)
- * Ini nargetin KALO 'react-to-print' GAGAL dan nge-print 1 window
+ * 3. ATURAN @page (Biarkan ini)
  */
 @media print {
-  /* Atur ukuran kertas */
   @page {
     size: 58mm auto;
     margin: 0 !important;
-  }
-
-  /* Sembunyikan semua di 1 window */
-  body * {
-    visibility: hidden !important;
-  }
-
-  /* Tampilkan struk & isinya di 1 window */
-  #struk-print-area,
-  #struk-print-area * {
-    visibility: visible !important;
-  }
-
-  /* "Buka" div struk-nya di 1 window */
-  #struk-print-area {
-    position: static !important;
-    height: auto !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
   }
 }

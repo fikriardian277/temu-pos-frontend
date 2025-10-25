@@ -8,9 +8,13 @@ import { toast } from "sonner";
 
 function PrintStrukButton({ componentRef, disabled }) {
   const handlePrint = useReactToPrint({
-    contentRef: componentRef, // <-- Tetap pake 'contentRef' // VVV Prop ini buat ngebenerin bug 'h-0' VVV
+    // 1. TETAP PAKAI contentRef
+    contentRef: componentRef,
 
-    bodyClass: "print-struk-body", // HAPUS SEMUA onBeforeGetContent / onAfterPrint
+    // 2. PAKAI bodyClass (Ini yang ngebenerin bug h-0)
+    bodyClass: "print-struk-body",
+
+    // 3. HAPUS SEMUA onBeforeGetContent / onAfterPrint
 
     documentTitle: "struk-transaksi",
     removeAfterPrint: false,
@@ -20,6 +24,7 @@ function PrintStrukButton({ componentRef, disabled }) {
     },
   });
 
+  // 4. Return button-nya (biarin, udah bener)
   return (
     <Button
       onClick={() => {
@@ -32,9 +37,10 @@ function PrintStrukButton({ componentRef, disabled }) {
       }}
       variant="outline"
       className="w-full"
-      disabled={disabled} // <-- PASTIKAN INI ADA
+      disabled={disabled} // <-- JANGAN LUPA INI
     >
-      <Printer className="mr-2 h-4 w-4" /> Cetak Struk{" "}
+      <Printer className="mr-2 h-4 w-4" />
+      Cetak Struk
     </Button>
   );
 }
