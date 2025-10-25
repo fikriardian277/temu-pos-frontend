@@ -1,4 +1,4 @@
-// src/components/struk/PrintStrukButton.jsx (VERSI PAKAI JS CLASS)
+// src/components/struk/PrintStrukButton.jsx
 
 import React from "react";
 import { useReactToPrint } from "react-to-print";
@@ -8,41 +8,39 @@ import { toast } from "sonner";
 
 function PrintStrukButton({ componentRef, disabled }) {
   const handlePrint = useReactToPrint({
-    // 1. WAJIB TETAP PAKE contentRef
-    contentRef: componentRef, // 2. MODIFIKASI onBeforeGetContent
+    // VVV 1. WAJIB BALIK KE contentRef VVV
+    contentRef: componentRef, // VVV 2. MODIFIKASI onBeforeGetContent VVV
 
     onBeforeGetContent: () => {
       return new Promise((resolve) => {
         const el = componentRef.current;
         if (el) {
-          // TAMBAH CLASS SECARA PAKSA
+          // Ini kuncinya: kita tambah class 'print-ready' secara paksa
           el.classList.add("print-ready");
           console.log("Menyiapkan struk: class 'print-ready' ditambahkan.");
-        } // TETAP KASIH JEDA
+        } // Kita tetep butuh jeda, biar browser sempet "mencerna" class baru ini
 
         setTimeout(() => {
           console.log("Jeda 300ms selesai, struk harusnya siap total.");
           resolve();
-        }, 300); // <-- Coba 300ms atau 500ms
+        }, 300); // <-- Tetap pake 300ms (atau 500ms)
       });
-    }, // 3. TAMBAHKAN onAfterPrint (PENTING!)
-
+    }, // ^^^ SELESAI MODIFIKASI ^^^ // VVV 3. TAMBAHKAN onAfterPrint VVV
     onAfterPrint: () => {
       console.log("Selesai print, membersihkan class...");
       const el = componentRef.current;
       if (el) {
-        // HAPUS CLASS-nya lagi biar sembunyi
+        // Ini buat ngebersihin, biar struknya sembunyi lagi
         el.classList.remove("print-ready");
       }
-    },
-
+    }, // ^^^ SELESAI onAfterPrint ^^^
     documentTitle: "struk-transaksi",
     removeAfterPrint: false,
     onPrintError: (error) => {
       console.error("REACT-TO-PRINT ERROR:", error);
       toast.error("Gagal menyiapkan print. Coba lagi.");
     },
-  }); // 4. Return button-nya (biarin, udah bener)
+  }); // ... (return button-nya biarin, udah bener)
 
   return (
     <Button
@@ -50,8 +48,8 @@ function PrintStrukButton({ componentRef, disabled }) {
         if (componentRef?.current && componentRef.current.innerHTML !== "") {
           handlePrint();
         } else {
-          console.error("Ref struk kosong atau belum siap!");
-          toast.error("Struk belum siap dicetak, coba sesaat lagi.");
+          console.error("Ref struk kosong!");
+          toast.error("Struk belum siap dicetak.");
         }
       }}
       variant="outline"
