@@ -34,12 +34,22 @@ function PrintPage() {
     } else {
       alert("Data struk tidak ditemukan.");
     }
+  }, []);
+  useEffect(() => {
+    // Fungsi ini akan jalan SETELAH dialog print ditutup (baik nge-print atau cancel)
+    const handleAfterPrint = () => {
+      console.log("Selesai print, menutup tab...");
+      window.close(); // <-- Perintah nutup tab
+    };
 
-    // 4. (Opsional) Tutup tab ini setelah print
-    // window.onafterprint = () => {
-    //   window.close();
-    // };
-  }, []); // Hanya jalan sekali saat halaman dibuka
+    // Pasang listener-nya
+    window.addEventListener("afterprint", handleAfterPrint);
+
+    // Bersih-bersih
+    return () => {
+      window.removeEventListener("afterprint", handleAfterPrint);
+    };
+  }, []);
 
   if (!transaksi || !pengaturan) {
     return <p>Memuat data struk...</p>; // Tampilan loading
