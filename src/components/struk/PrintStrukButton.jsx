@@ -1,14 +1,10 @@
-// src/components/struk/PrintStrukButton.jsx (VERSI PORTAL + JS)
+// src/components/struk/PrintStrukButton.jsx (VERSI JS INLINE + PORTAL)
 
 import React from "react";
 import { useReactToPrint } from "react-to-print";
 import { Button } from "@/components/ui/Button.jsx";
 import { Printer } from "lucide-react";
 import { toast } from "sonner";
-
-// Ini class CSS yang akan kita pake
-const PRINT_READY_CLASS = "print-ready";
-const HIDE_DURING_PRINT_CLASS = "hide-during-print";
 
 function PrintStrukButton({ componentRef, disabled }) {
   const handlePrint = useReactToPrint({
@@ -19,44 +15,63 @@ function PrintStrukButton({ componentRef, disabled }) {
     // HAPUS pageStyle
     // HAPUS bodyClass
 
-    // KITA PAKAI INI
     onBeforeGetContent: () => {
       return new Promise((resolve) => {
-        // 1. "Buka" div struk-nya (lawan h-0, opacity-0)
+        // 1. Ambil #root (Aplikasi React lu)
+        const rootEl = document.getElementById("root");
+
+        // 2. Ambil struk (dari portal)
         const strukEl = componentRef.current;
-        if (strukEl) {
-          strukEl.classList.add(PRINT_READY_CLASS);
+
+        // 3. Sembunyikan #root PAKSA pake INLINE STYLE
+        if (rootEl) {
+          rootEl.style.display = "none";
         }
 
-        // 2. Sembunyikan SEMUA elemen lain
-        const children = Array.from(document.body.children);
-        children.forEach((el) => {
-          // Sembunyikan semua KECUALI 'print-portal'
-          if (el.id !== "print-portal") {
-            el.classList.add(HIDE_DURING_PRINT_CLASS);
-          }
-        });
+        // 4. "Buka" struk PAKSA pake INLINE STYLE
+        // Ini akan ngalahin class 'h-0' dan 'opacity-0'
+        if (strukEl) {
+          strukEl.style.position = "static";
+          strukEl.style.height = "auto";
+          strukEl.style.opacity = "1";
+          strukEl.style.visibility = "visible";
+        }
 
-        // 3. Kasih jeda 300ms
-        // Ini WAJIB biar browser (dan Spooler) sempet ngebaca class baru
+        // 5. Jeda 300ms (WAJIB, biar Spooler baca style baru)
         setTimeout(resolve, 300);
       });
     },
 
-    // Ini buat bersih-bersih
     onAfterPrint: () => {
-      componentRef.current?.classList.remove(PRINT_READY_CLASS);
-      document
-        .querySelectorAll("." + HIDE_DURING_PRINT_CLASS)
-        .forEach((el) => el.classList.remove(HIDE_DURING_PRINT_CLASS));
+      // 1. Kembalikan #root
+      const rootEl = document.getElementById("root");
+      if (rootEl) {
+        rootEl.style.display = null; // null = balikin ke default (dihapus)
+      }
+
+      // 2. "Tutup" struk (balikin ke class Tailwind)
+      const strukEl = componentRef.current;
+      if (strukEl) {
+        strukEl.style.position = null;
+        strukEl.style.height = null;
+        strukEl.style.opacity = null;
+        strukEl.style.visibility = null;
+      }
     },
 
     onPrintError: (error) => {
       // Bersih-bersih juga kalo error
-      componentRef.current?.classList.remove(PRINT_READY_CLASS);
-      document
-        .querySelectorAll("." + HIDE_DURING_PRINT_CLASS)
-        .forEach((el) => el.classList.remove(HIDE_DURING_PRINT_CLASS));
+      const rootEl = document.getElementById("root");
+      if (rootEl) {
+        rootEl.style.display = null;
+      }
+      const strukEl = componentRef.current;
+      if (strukEl) {
+        strukEl.style.position = null;
+        strukEl.style.height = null;
+        strukEl.style.opacity = null;
+        strukEl.style.visibility = null;
+      }
 
       console.error("REACT-TO-PRINT ERROR:", error);
       toast.error("Gagal menyiapkan print. Coba lagi.");
