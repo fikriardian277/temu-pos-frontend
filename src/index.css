@@ -63,11 +63,3 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-/* 3. ATURAN @media print "NUKLIR" */
-@media print {
-  @page {
-    size: 58mm auto;
-    margin: 0 !important;
-  }
-}

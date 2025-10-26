@@ -31,6 +31,7 @@ import PengaturanUsahaPage from "./pages/PengaturanUsahaPage.jsx";
 import RiwayatDetailPage from "./pages/RiwayatDetailPage.jsx";
 import HotelLaundryPage from "./pages/HotelLaundryPage";
 import IdentitasBisnisPage from "./pages/IdentitasBisnisPage";
+import PrintPage from "./pages/PrintPage";
 
 function ProtectedLayout() {
   const { authState } = useAuth();
@@ -91,6 +92,10 @@ const router = createBrowserRouter([
       { path: "laundry-hotel", element: <HotelLaundryPage /> },
       { path: "identitas-bisnis", element: <IdentitasBisnisPage /> },
     ],
+  },
+  {
+    path: "/print-struk",
+    element: <PrintPage />,
   },
 ]);
 

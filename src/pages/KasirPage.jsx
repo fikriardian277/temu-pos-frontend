@@ -5,15 +5,15 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { createPortal } from "react-dom";
+// import { createPortal } from "react-dom";
 
 // Komponen & Ikon
 import CustomerSection from "../components/kasir/CustomerSection";
 import ServiceSelector from "../components/kasir/ServiceSelector.jsx";
 import Cart from "../components/kasir/Cart";
 import Struk from "../components/struk/Struk";
-import PrintStrukButton from "../components/struk/PrintStrukButton";
-import { CheckCircle, Loader2 } from "lucide-react";
+// import PrintStrukButton from "../components/struk/PrintStrukButton";
+import { CheckCircle, Loader2, Printer } from "lucide-react";
 import { Textarea } from "@/components/ui/Textarea.jsx";
 import { Button } from "@/components/ui/Button.jsx";
 import {
@@ -69,7 +69,7 @@ function KasirPage() {
   const [transaksiSuccess, setTransaksiSuccess] = useState(null);
   const [detailTransaksiSukses, setDetailTransaksiSukses] = useState(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const strukRef = useRef();
+  // const strukRef = useRef();
   const [allCategories, setAllCategories] = useState([]);
   const [isPoinModalOpen, setIsPoinModalOpen] = useState(false);
   const [formError, setFormError] = useState("");
@@ -80,6 +80,23 @@ function KasirPage() {
   const [isAlamatModalOpen, setIsAlamatModalOpen] = useState(false);
   const [alamatToEdit, setAlamatToEdit] = useState("");
   const [isStrukReady, setIsStrukReady] = useState(false);
+
+  const handleBukaPrintTab = () => {
+    if (!detailTransaksiSukses) {
+      toast.error("Data transaksi tidak ditemukan.");
+      return;
+    }
+
+    // 1. Simpan data ke sessionStorage
+    const dataToPrint = {
+      detailTransaksiSukses: detailTransaksiSukses,
+      authStatePengaturan: authState.pengaturan,
+    };
+    sessionStorage.setItem("dataStrukToPrint", JSON.stringify(dataToPrint));
+
+    // 2. Buka tab baru
+    window.open("/print-struk", "_blank");
+  };
 
   // Handler dan Fungsi Logika
   const handleSelectPelanggan = (pelanggan) => {
@@ -513,12 +530,15 @@ function KasirPage() {
               {/* Tombol Print & WA */}
               {detailTransaksiSukses && (
                 <div className="mt-6 grid grid-cols-2 gap-4">
-                  {/* Kembali ke PrintStrukButton */}
-                  <PrintStrukButton
-                    componentRef={strukRef} // <-- Ref ke div tersembunyi
-                    disabled={!isStrukReady}
-                    // Hapus onBeforePrint atau onBeforeGetContent jika ada
-                  />
+                  <Button
+                    onClick={handleBukaPrintTab}
+                    variant="outline"
+                    className="w-full"
+                    // 'disabled' udah gak perlu nunggu ref
+                  >
+                    <Printer className="mr-2 h-4 w-4" />
+                    Cetak Struk
+                  </Button>
                   <Button
                     onClick={handleKirimWA}
                     variant="outline"
@@ -547,13 +567,11 @@ function KasirPage() {
               </Button>
             </CardContent>
           </Card>{" "}
-          {/* VVV INI PERUBAHAN BESARNYA VVV */}
-          {/* Kita "mindahin" div tersembunyi pake Portal */}
-          {createPortal(
+          {/* {createPortal(
             <div
               id="struk-print-area"
               ref={strukRef}
-              // Kita tetep pake class 'gepeng' ini
+              
               className="absolute left-0 top-0 h-0 w-full opacity-0 pointer-events-none"
               aria-hidden="true"
             >
@@ -566,8 +584,8 @@ function KasirPage() {
             </div>,
             document.getElementById("print-portal") // <-- 3. Targetin portalnya
           )}
-          {/* ^^^ SELESAI PORTAL ^^^ */}
-        </> // <-- Akhir Fragment
+          */}
+        </>
       )}{" "}
       {/* <-- Akhir blok sukses transaksi */}
       {/* --- MODAL TUKAR POIN --- */}
