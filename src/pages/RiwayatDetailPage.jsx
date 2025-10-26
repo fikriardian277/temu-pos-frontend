@@ -1,13 +1,12 @@
 // src/pages/RiwayatDetailPage.jsx (VERSI FINAL & ANTI-BOCOR)
 
-import React, { useEffect, useState, useRef, useCallback } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabaseClient"; // <-- BENERIN
 import { useAuth } from "@/context/AuthContext"; // <-- BENERIN
 import Struk from "../components/struk/Struk"; // <-- Komponen Struk
-import PrintStrukButton from "../components/struk/PrintStrukButton"; // <-- Tombol Print KITA
+
 import { toast } from "sonner";
-import { usePageVisibility } from "@/lib/usePageVisibility.js"; // <-- Sensor anti-macet
 
 // ... (semua import komponen UI & ikon tidak berubah)
 import {
@@ -21,9 +20,7 @@ import { Button } from "@/components/ui/Button.jsx";
 import { Loader2, Printer, MessageSquare } from "lucide-react";
 import { Badge } from "@/components/ui/Badge.jsx";
 
-const formatRupiah = (value) => {
-  /* ... (fungsi formatRupiah tidak berubah) ... */
-};
+const formatRupiah = (value) => Number(value ?? 0).toLocaleString("id-ID");
 
 export default function RiwayatDetailPage() {
   const { kode_invoice } = useParams();
@@ -37,8 +34,6 @@ export default function RiwayatDetailPage() {
   // ==========================================================
   // LOGIKA "SENSOR KESIAPAN STRUK" (KITA CURI DARI KASIRPAGE)
   // ==========================================================
-  const strukRef = useRef(null);
-  const [isStrukReady, setIsStrukReady] = useState(false);
 
   // "Mesin" Fetch Data (sudah di-upgrade)
   const fetchDetail = useCallback(async () => {
@@ -87,23 +82,21 @@ export default function RiwayatDetailPage() {
     fetchDetail();
   }, [fetchDetail]);
 
-  // usePageVisibility(fetchDetail);
-
-  // "Sensor" Kesiapan Struk (sama persis kayak di KasirPage)
-  useEffect(() => {
-    setIsStrukReady(false);
-    if (transaksi) {
-      // <-- Cek 'transaksi', bukan 'detailTransaksiSukses'
-      const timer = setTimeout(() => {
-        if (strukRef.current) {
-          setIsStrukReady(true);
-        } else {
-          console.error("ERROR: Ref struk masih kosong setelah jeda render.");
-        }
-      }, 100);
-      return () => clearTimeout(timer);
+  const handleBukaPrintTab = () => {
+    // Pake state 'transaksi' dari halaman ini
+    if (!transaksi) {
+      toast.error("Data detail transaksi tidak ditemukan.");
+      return;
     }
-  }, [transaksi]);
+    // Nama key harus konsisten
+    const dataToPrint = {
+      detailTransaksiSukses: transaksi,
+      authStatePengaturan: authState.pengaturan,
+    };
+    sessionStorage.setItem("dataStrukToPrint", JSON.stringify(dataToPrint));
+    window.open("/print-struk", "_blank");
+  };
+
   // ==========================================================
   // "MESIN" KIRIM WA DI-UPGRADE TOTAL
   // ==========================================================
@@ -198,10 +191,15 @@ export default function RiwayatDetailPage() {
             ← Kembali
           </Button>
           {/* BENERIN: Panggil komponen <PrintStrukButton> */}
-          <PrintStrukButton
-            componentRef={strukRef}
-            disabled={!isStrukReady} // <-- Pake gembok sensor
-          />
+          <Button
+            variant="outline"
+            onClick={handleBukaPrintTab}
+            // Disable kalo data belum ada (meski harusnya udah ada di sini)
+            disabled={!transaksi}
+          >
+            <Printer className="mr-2 h-4 w-4" />
+            Cetak Struk
+          </Button>
           <Button
             variant="default"
             onClick={handleKirimWA}
@@ -384,16 +382,6 @@ export default function RiwayatDetailPage() {
             </CardContent>
           </Card>
         </div>
-      </div>
-
-      {/* OFF-SCREEN struk khusus untuk print */}
-      <div
-        ref={strukRef} // <-- 'ref' nempel di sini
-        className="absolute -left-[9999px] top-0 print:static print:block"
-        aria-hidden="true"
-      >
-        {/* BENERIN: Kasih 'pengaturan' ke Struk ini juga */}
-        <Struk transaksi={transaksi} pengaturan={authState.pengaturan} />
       </div>
     </div>
   );

@@ -1,12 +1,11 @@
 // src/pages/HotelLaundryPage.jsx (Bagian Logika Lengkap)
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { supabase } from "@/supabaseClient";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Printer } from "lucide-react";
 import Struk from "../components/struk/Struk"; // <-- TAMBAH INI
-import PrintStrukButton from "../components/struk/PrintStrukButton";
 
 // Import komponen UI yang mungkin dibutuhkan (disimpan di sini biar rapi)
 import { Button } from "@/components/ui/Button.jsx";
@@ -51,8 +50,6 @@ function HotelLaundryPage() {
 
   const [createdOrderDetails, setCreatedOrderDetails] = useState(null); // <-- State buat nyimpen detail order yg baru dibuat
   const [isStrukModalOpen, setIsStrukModalOpen] = useState(false); // <-- State buat buka/tutup modal struk
-  const [isStrukReady, setIsStrukReady] = useState(false); // <-- State kesiapan struk
-  const strukRef = useRef(null);
 
   // --- Fetch HANYA data hotel/villa (customer tipe 'hotel') ---
   useEffect(() => {
@@ -160,21 +157,6 @@ function HotelLaundryPage() {
     fetchPackagesForSelectedHotel();
   }, [selectedHotelId, hotelCustomers, authState.business_id]); // Trigger saat hotel dipilih
 
-  useEffect(() => {
-    setIsStrukReady(false); // Reset dulu
-    if (createdOrderDetails && isStrukModalOpen) {
-      // Cek kalo ada data DAN modal kebuka
-      const timer = setTimeout(() => {
-        if (strukRef.current) {
-          setIsStrukReady(true);
-        } else {
-          console.error("ERROR: Ref struk hotel masih kosong.");
-        }
-      }, 100); // Jeda render
-      return () => clearTimeout(timer);
-    }
-  }, [createdOrderDetails, isStrukModalOpen]);
-
   // --- Handler untuk ubah jumlah ---
   const handleQuantityChange = (packageId, value) => {
     const numValue = value === "" ? 0 : parseInt(value);
@@ -183,6 +165,21 @@ function HotelLaundryPage() {
       ...prevQuantities,
       [packageId]: value === "" ? "" : String(sanitizedValue),
     }));
+  };
+
+  const handleBukaPrintTab = () => {
+    // Pake 'createdOrderDetails' yang ada di state modal
+    if (!createdOrderDetails) {
+      toast.error("Data detail transaksi tidak ditemukan.");
+      return;
+    }
+    // Nama key harus konsisten
+    const dataToPrint = {
+      detailTransaksiSukses: createdOrderDetails,
+      authStatePengaturan: authState.pengaturan,
+    };
+    sessionStorage.setItem("dataStrukToPrint", JSON.stringify(dataToPrint));
+    window.open("/print-struk", "_blank");
   };
 
   // --- Handler untuk submit form ---
@@ -237,16 +234,47 @@ function HotelLaundryPage() {
           "Order tercatat, tapi gagal memuat detail struk: " +
             fetchError.message
         );
-        // Lanjut reset form meskipun gagal fetch detail
       } else {
-        // VVV TAMBAH LOG INI VVV
-        console.log("DEBUG Struk Modal - Data Order:", orderDetails);
-        console.log(
-          "DEBUG Struk Modal - ID Identitas:",
-          orderDetails?.customers?.id_identitas_bisnis
-        );
-        // ^^^ SELESAI ^^^
-        setCreatedOrderDetails(orderDetails); // Simpan detailnya
+        // VVV TAMBAH LOGIKA INI VVV
+        let finalOrderDetails = orderDetails; // Defaultnya pake data order aja
+
+        // Cek kalo ini order hotel dan ada ID identitas
+        if (
+          orderDetails.tipe_order === "hotel" &&
+          orderDetails.customers?.id_identitas_bisnis
+        ) {
+          try {
+            const { data: identityData, error: identityError } = await supabase
+              .from("identitas_bisnis")
+              .select("*")
+              .eq("id", orderDetails.customers.id_identitas_bisnis)
+              .eq("business_id", authState.business_id) // Keamanan
+              .maybeSingle();
+
+            if (identityError) throw identityError;
+
+            // Gabungin data order DENGAN data identitas
+            finalOrderDetails = {
+              ...orderDetails,
+              // Kita "tempel" data identitas ke dalem objek customers
+              customers: {
+                ...orderDetails.customers,
+                prefetched_identity: identityData, // Nama properti bebas
+              },
+            };
+            console.log(
+              "DEBUG: Data identitas berhasil di-prefetch:",
+              identityData
+            );
+          } catch (identityErr) {
+            console.error("Gagal prefetch data identitas:", identityErr);
+            toast.warning(
+              "Gagal memuat data identitas hotel, struk mungkin kurang lengkap."
+            );
+            // Kalo gagal, kita tetep lanjut pake orderDetails biasa
+          }
+        }
+        setCreatedOrderDetails(finalOrderDetails); // Simpan detailnya
         setIsStrukModalOpen(true); // Buka modal struk
         toast.success("Data laundry hotel berhasil dicatat!");
       }
@@ -414,21 +442,6 @@ function HotelLaundryPage() {
           </DialogHeader>
           {createdOrderDetails ? (
             <div className="py-2">
-              {/* Tempat Struk (tidak terlihat langsung, hanya untuk print) */}
-              <div
-                className="absolute -left-[9999px] top-0 print:static print:block"
-                aria-hidden="true"
-              >
-                <div ref={strukRef}>
-                  {" "}
-                  {/* Pasang ref di sini */}
-                  <Struk
-                    transaksi={createdOrderDetails}
-                    pengaturan={authState.pengaturan}
-                  />
-                </div>
-              </div>
-              {/* Preview Struk di Modal (jika mau) */}
               <div className="border rounded-md bg-muted/30 p-1 max-h-80 overflow-y-auto">
                 <Struk
                   transaksi={createdOrderDetails}
@@ -448,10 +461,15 @@ function HotelLaundryPage() {
             >
               Tutup
             </Button>
-            <PrintStrukButton
-              componentRef={strukRef}
-              disabled={!isStrukReady || !createdOrderDetails} // Disable jika belum siap
-            />
+            <Button
+              variant="default" // Atau variant="outline" sesuai selera
+              onClick={handleBukaPrintTab}
+              // Disable kalo detail belum ada
+              disabled={!createdOrderDetails}
+            >
+              <Printer className="w-4 h-4 mr-2" />
+              Cetak Struk
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

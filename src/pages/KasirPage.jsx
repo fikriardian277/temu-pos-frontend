@@ -1,18 +1,17 @@
 // src/pages/KasirPage.jsx (VERSI FINAL & ANTI-BOCOR)
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-// import { createPortal } from "react-dom";
 
 // Komponen & Ikon
 import CustomerSection from "../components/kasir/CustomerSection";
 import ServiceSelector from "../components/kasir/ServiceSelector.jsx";
 import Cart from "../components/kasir/Cart";
 import Struk from "../components/struk/Struk";
-// import PrintStrukButton from "../components/struk/PrintStrukButton";
+
 import { CheckCircle, Loader2, Printer } from "lucide-react";
 import { Textarea } from "@/components/ui/Textarea.jsx";
 import { Button } from "@/components/ui/Button.jsx";
@@ -79,7 +78,6 @@ function KasirPage() {
   const [biayaLayanan, setBiayaLayanan] = useState(0);
   const [isAlamatModalOpen, setIsAlamatModalOpen] = useState(false);
   const [alamatToEdit, setAlamatToEdit] = useState("");
-  const [isStrukReady, setIsStrukReady] = useState(false);
 
   const handleBukaPrintTab = () => {
     if (!detailTransaksiSukses) {
@@ -365,28 +363,6 @@ function KasirPage() {
     }
     // ^^^ Selesai ^^^
   }, [location.state, location.pathname, navigate]);
-
-  useEffect(() => {
-    // Reset status kesiapan setiap kali data transaksi berubah (atau hilang)
-    setIsStrukReady(false);
-
-    if (detailTransaksiSukses) {
-      // Beri jeda SANGAT SINGKAT (misal 100ms) agar komponen Struk
-      // sempat render dan menempelkan dirinya ke ref.
-      const timer = setTimeout(() => {
-        if (strukRef.current) {
-          setIsStrukReady(true); // <-- NYALAKAN SAKLAR KESIAPAN
-          console.log("LOG: Komponen Struk siap, ref terpasang.");
-        } else {
-          console.error("ERROR: Ref struk masih kosong setelah jeda render.");
-          toast.warning("Komponen struk gagal dimuat, coba refresh.");
-        }
-      }, 100); // Jeda 100 milidetik (bisa disesuaikan jika perlu)
-
-      // Jangan lupa bersihkan timeout jika komponen unmount atau data berubah lagi
-      return () => clearTimeout(timer);
-    }
-  }, [detailTransaksiSukses]);
 
   const handleOpenAlamatModal = () => {
     if (!selectedPelanggan) return;

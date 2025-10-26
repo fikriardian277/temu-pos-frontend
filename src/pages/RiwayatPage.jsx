@@ -1,12 +1,12 @@
-// src/pages/RiwayatPage.jsx (VERSI ANTI-BOCOR & LENGKAP)
+// src/pages/RiwayatPage.jsx (VERSI LOGIKA PRINT BARU)
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
-import { supabase } from "@/supabaseClient"; // <-- BENERIN
-import { useAuth } from "@/context/AuthContext"; // <-- BENERIN
-import { useReactToPrint } from "react-to-print";
+import React, { useState, useEffect, useCallback } from "react"; // <--- Hapus useRef
+import { supabase } from "@/supabaseClient";
+import { useAuth } from "@/context/AuthContext";
+// HAPUS import useReactToPrint
 import Struk from "../components/struk/Struk";
 import { toast } from "sonner";
-import PrintStrukButton from "../components/struk/PrintStrukButton";
+// HAPUS import PrintStrukButton
 
 // ... (semua import komponen UI & ikon tidak berubah)
 import { Button } from "@/components/ui/Button.jsx";
@@ -34,7 +34,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/Dialog.jsx";
-import { Printer, MessageSquare, Loader2, History } from "lucide-react";
+import { Printer, MessageSquare, Loader2, History } from "lucide-react"; // Printer tetap perlu buat ikon
 import EmptyState from "@/components/ui/EmptyState.jsx";
 
 function RiwayatPage() {
@@ -45,11 +45,8 @@ function RiwayatPage() {
   const [detailTransaksi, setDetailTransaksi] = useState(null);
   const [isDetailLoading, setIsDetailLoading] = useState(false);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [loadingWA, setLoadingWA] = useState(false);
-  const [isStrukReady, setIsStrukReady] = useState(false);
-  const { authState } = useAuth();
-  const strukRef = useRef(null);
-
+  const [loadingWA, setLoadingWA] = useState(false); // HAPUS useState(isStrukReady)
+  const { authState } = useAuth(); // HAPUS useRef(strukRef)
   // ==========================================================
   // "MESIN" FETCH DATA DI-UPGRADE TOTAL
   // ==========================================================
@@ -116,29 +113,21 @@ function RiwayatPage() {
   useEffect(() => {
     const timer = setTimeout(() => fetchRiwayat(), 500);
     return () => clearTimeout(timer);
-  }, [fetchRiwayat]);
+  }, [fetchRiwayat]); // HAPUS useEffect yang ngurusin isStrukReady // HAPUS handlePrint = useReactToPrint // --- BUAT FUNGSI BARU INI ---
 
-  useEffect(() => {
-    setIsStrukReady(false); // Reset dulu
-    // Cek kalo ada data detail DAN modal kebuka
-    if (detailTransaksi && isDetailOpen) {
-      const timer = setTimeout(() => {
-        if (strukRef.current) {
-          setIsStrukReady(true);
-        } else {
-          console.error("ERROR: Ref struk modal riwayat masih kosong.");
-        }
-      }, 100); // Jeda render
-      return () => clearTimeout(timer);
-    }
-  }, [detailTransaksi, isDetailOpen]);
-
-  // Print handler (sudah bener pake v3 contentRef)
-  const handlePrint = useReactToPrint({
-    contentRef: strukRef,
-    documentTitle: detailTransaksi?.invoice_code || "Struk",
-  });
-
+  const handleBukaPrintTab = () => {
+    // Pake 'detailTransaksi' yang ada di state modal
+    if (!detailTransaksi) {
+      toast.error("Data detail transaksi tidak ditemukan.");
+      return;
+    } // Nama key harus konsisten dengan yang dibaca PrintPage.jsx
+    const dataToPrint = {
+      detailTransaksiSukses: detailTransaksi,
+      authStatePengaturan: authState.pengaturan,
+    };
+    sessionStorage.setItem("dataStrukToPrint", JSON.stringify(dataToPrint));
+    window.open("/print-struk", "_blank");
+  };
   // ==========================================================
   // "MESIN" VIEW DETAIL & KIRIM WA DI-UPGRADE TOTAL
   // ==========================================================
@@ -345,11 +334,15 @@ function RiwayatPage() {
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <PrintStrukButton
-                    componentRef={strukRef} // Ref ke div tersembunyi
-                    disabled={!isStrukReady || !detailTransaksi} // Disable jika belum siap/data belum ada
-                    // Hapus onBeforePrint atau onBeforeGetContent jika ada
-                  />
+                  <Button
+                    variant="outline"
+                    onClick={handleBukaPrintTab}
+                    // Disable kalo detail belum ada atau masih loading
+                    disabled={isDetailLoading || !detailTransaksi}
+                  >
+                    <Printer className="w-4 h-4 mr-2" />
+                    Cetak Struk{" "}
+                  </Button>
                   <Button
                     variant="default"
                     className="bg-green-500 hover:bg-green-600"
@@ -378,25 +371,6 @@ function RiwayatPage() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Elemen tersembunyi untuk keperluan print */}
-      <div
-        id="struk-print-area" // <-- TAMBAH ID DI SINI
-        style={{ position: "absolute", left: "-9999px", top: 0 }}
-        aria-hidden="true"
-      >
-        <div ref={strukRef}>
-          {" "}
-          {/* <-- Ref udah bener di sini */}
-          {/* Render Struk HANYA JIKA ada data detail */}
-          {detailTransaksi && (
-            <Struk
-              transaksi={detailTransaksi} // <-- Pake detailTransaksi
-              pengaturan={authState.pengaturan}
-            />
-          )}
-        </div>
-      </div>
     </div>
   );
 }

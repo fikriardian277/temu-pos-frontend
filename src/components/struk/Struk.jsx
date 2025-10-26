@@ -17,6 +17,13 @@ const Struk = React.forwardRef(({ transaksi, pengaturan }, ref) => {
     const identityId = customerData?.id_identitas_bisnis;
     const businessId = transaksi?.business_id;
 
+    if (isHotelOrder && customerData?.prefetched_identity) {
+      console.log("DEBUG Struk: Menggunakan data identitas prefetch.");
+      setIdentityData(customerData.prefetched_identity);
+      setLoadingIdentity(false); // Langsung gak loading
+      return; // Langsung keluar, GAK PERLU fetch lagi
+    }
+
     if (isHotelOrder && identityId && businessId) {
       const fetchIdentity = async () => {
         setLoadingIdentity(true);
