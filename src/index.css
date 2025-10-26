@@ -1,4 +1,4 @@
-/* src/index.css (VERSI FINAL - HANYA bodyClass) */
+/* src/index.css (VERSI "NUKLIR" FINAL) */
 
 /* 1. ATURAN DASAR TAILWIND (Biarkan) */
 @layer base {
@@ -68,31 +68,30 @@
  * 2. ATURAN PRINT "NUKLIR" UNTUK IFRAME
  */
 
-/* * Sembunyikan SEMUA direct children dari <body>
- * (Ini akan nyembunyiin <div id="root">, <aside>, dll.)
+/* * Sembunyikan SEMUA elemen di jendela print
+ * Kita pakai display: none !important; Ini "Nuklir"-nya
 */
-body.print-struk-body > * {
+body.print-struk-body * {
   display: none !important;
 }
 
-/* * KECUALIKAN #struk-print-area dan "BUKA" dia
- * Ini LEBIH KUAT dari aturan di atas dan LEBIH KUAT dari 'h-0'
+/* * KECUALIKAN #struk-print-area dan SEMUA ANAKNYA
+ * Ini akan "menghidupkan" lagi struknya
+*/
+body.print-struk-body #struk-print-area,
+body.print-struk-body #struk-print-area * {
+  display: block !important;
+  visibility: visible !important;
+}
+
+/* * "Buka" div struk-nya (override h-0, opacity-0)
+ * Ini harus nargetin #struk-print-area (tanpa *)
 */
 body.print-struk-body #struk-print-area {
-  display: block !important;
   height: auto !important;
   opacity: 1 !important;
   pointer-events: auto !important;
   position: static !important;
-  visibility: visible !important;
-}
-
-/* * Tampilkan juga SEMUA anak dari struk
- * (Jaga-jaga kalo 'display: none' diwariskan)
-*/
-body.print-struk-body #struk-print-area * {
-  display: block !important;
-  visibility: visible !important;
 }
 
 /*

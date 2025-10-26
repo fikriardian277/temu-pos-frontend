@@ -1,4 +1,4 @@
-// src/components/struk/PrintStrukButton.jsx
+// src/components/struk/PrintStrukButton.jsx (VERSI bodyClass FINAL)
 
 import React from "react";
 import { useReactToPrint } from "react-to-print";
@@ -8,40 +8,25 @@ import { toast } from "sonner";
 
 function PrintStrukButton({ componentRef, disabled }) {
   const handlePrint = useReactToPrint({
-    // VVV 1. WAJIB BALIK KE contentRef VVV
-    contentRef: componentRef, // VVV 2. MODIFIKASI onBeforeGetContent VVV
+    // 1. TETAP PAKAI contentRef
+    contentRef: componentRef,
 
-    onBeforeGetContent: () => {
-      return new Promise((resolve) => {
-        const el = componentRef.current;
-        if (el) {
-          // Ini kuncinya: kita tambah class 'print-ready' secara paksa
-          el.classList.add("print-ready");
-          console.log("Menyiapkan struk: class 'print-ready' ditambahkan.");
-        } // Kita tetep butuh jeda, biar browser sempet "mencerna" class baru ini
+    // 2. WAJIB PAKAI bodyClass (Ini yang ngebenerin bug h-0)
+    bodyClass: "print-struk-body",
 
-        setTimeout(() => {
-          console.log("Jeda 300ms selesai, struk harusnya siap total.");
-          resolve();
-        }, 300); // <-- Tetap pake 300ms (atau 500ms)
-      });
-    }, // ^^^ SELESAI MODIFIKASI ^^^ // VVV 3. TAMBAHKAN onAfterPrint VVV
-    onAfterPrint: () => {
-      console.log("Selesai print, membersihkan class...");
-      const el = componentRef.current;
-      if (el) {
-        // Ini buat ngebersihin, biar struknya sembunyi lagi
-        el.classList.remove("print-ready");
-      }
-    }, // ^^^ SELESAI onAfterPrint ^^^
+    // 3. HAPUS SEMUA onBeforeGetContent / onAfterPrint
+    // (onBeforeGetContent: () => { ... HAPUS ... })
+    // (onAfterPrint: () => { ... HAPUS ... })
+
     documentTitle: "struk-transaksi",
     removeAfterPrint: false,
     onPrintError: (error) => {
       console.error("REACT-TO-PRINT ERROR:", error);
       toast.error("Gagal menyiapkan print. Coba lagi.");
     },
-  }); // ... (return button-nya biarin, udah bener)
+  });
 
+  // 4. Return button-nya (biarin, udah bener)
   return (
     <Button
       onClick={() => {
@@ -54,9 +39,10 @@ function PrintStrukButton({ componentRef, disabled }) {
       }}
       variant="outline"
       className="w-full"
-      disabled={disabled}
+      disabled={disabled} // <-- JANGAN LUPA INI
     >
-      <Printer className="mr-2 h-4 w-4" /> Cetak Struk{" "}
+      <Printer className="mr-2 h-4 w-4" />
+      Cetak Struk
     </Button>
   );
 }
