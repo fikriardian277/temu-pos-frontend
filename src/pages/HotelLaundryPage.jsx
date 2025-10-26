@@ -274,7 +274,7 @@ function HotelLaundryPage() {
             // Kalo gagal, kita tetep lanjut pake orderDetails biasa
           }
         }
-        setCreatedOrderDetails(finalOrderDetails); // Simpan detailnya
+        setCreatedOrderDetails(orderDetails); // Simpan detailnya
         setIsStrukModalOpen(true); // Buka modal struk
         toast.success("Data laundry hotel berhasil dicatat!");
       }
