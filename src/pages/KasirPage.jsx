@@ -5,7 +5,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { supabase } from "@/supabaseClient";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { usePageVisibility } from "@/lib/usePageVisibility.js";
+import { createPortal } from "react-dom";
 
 // Komponen & Ikon
 import CustomerSection from "../components/kasir/CustomerSection";
@@ -547,23 +547,26 @@ function KasirPage() {
               </Button>
             </CardContent>
           </Card>{" "}
-          {/* <-- Akhir Card Sukses */}
-          {/* DIV TERSEMBUNYI KHUSUS UNTUK PRINT */}
-          <div
-            id="struk-print-area" // <-- ID di sini
-            ref={strukRef} // <-- REF di sini // VVV Pastikan class-nya ini VVV
-            className="absolute left-0 top-0 h-0 w-full opacity-0 pointer-events-none"
-            aria-hidden="true"
-          >
-            {" "}
-            {detailTransaksiSukses && ( // Render <Struk> langsung di dalemnya
-              <Struk
-                transaksi={detailTransaksiSukses}
-                pengaturan={authState.pengaturan}
-              />
-            )}{" "}
-          </div>
-          {/* AKHIR DIV TERSEMBUNYI */}
+          {/* VVV INI PERUBAHAN BESARNYA VVV */}
+          {/* Kita "mindahin" div tersembunyi pake Portal */}
+          {createPortal(
+            <div
+              id="struk-print-area"
+              ref={strukRef}
+              // Kita tetep pake class 'gepeng' ini
+              className="absolute left-0 top-0 h-0 w-full opacity-0 pointer-events-none"
+              aria-hidden="true"
+            >
+              {detailTransaksiSukses && (
+                <Struk
+                  transaksi={detailTransaksiSukses}
+                  pengaturan={authState.pengaturan}
+                />
+              )}
+            </div>,
+            document.getElementById("print-portal") // <-- 3. Targetin portalnya
+          )}
+          {/* ^^^ SELESAI PORTAL ^^^ */}
         </> // <-- Akhir Fragment
       )}{" "}
       {/* <-- Akhir blok sukses transaksi */}

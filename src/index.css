@@ -63,3 +63,33 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* 2. CSS UNTUK JAVASCRIPT PRINT */
+
+/* Ini "membuka" div struk (lawan h-0, opacity-0) */
+#struk-print-area.print-ready {
+  height: auto !important;
+  opacity: 1 !important;
+  pointer-events: auto !important;
+  position: static !important; /* Ganti jadi static biar ngalir */
+}
+
+/* 3. ATURAN @media print "NUKLIR" */
+@media print {
+  @page {
+    size: 58mm auto;
+    margin: 0 !important;
+  }
+
+  /* Sembunyikan semua yang ditandai JS */
+  .hide-during-print {
+    display: none !important;
+  }
+
+  /* "Buka" struk-nya */
+  #struk-print-area {
+    position: static !important;
+    height: auto !important;
+    opacity: 1 !important;
+  }
+}
