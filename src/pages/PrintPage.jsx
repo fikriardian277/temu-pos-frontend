@@ -58,7 +58,7 @@ function PrintPage() {
         /* --- STYLING KHUSUS STRUK --- */
 
         /* 3. Container Struk Utama (REVISI: Tambah padding atas/bawah) */
-        .struk-container { /* Ganti target ke class container jika ada, atau tambahkan class ini ke div utama di Struk.jsx */
+        .struk-container { 
           padding-top: 5px !important; /* Tambah padding atas */
           padding-bottom: 5px !important; /* Tambah padding bawah */
           /* Style asli: */
@@ -72,6 +72,30 @@ function PrintPage() {
           
           padding-right: 1px;
           line-height: 1.2; /* Sedikit renggangin antar baris */
+        }
+
+.hotel-struk {
+          padding-left: 0 !important;  /* Hapus padding kiri */
+          padding-right: 0 !important; /* Hapus padding kanan */
+          font-size: 12px !important; /* Gedein font dasar hotel */
+        }
+        /* Gedein font nama item khusus hotel */
+        .hotel-struk .item-name {
+          font-size: 12px !important; /* Samain sama font dasar hotel */
+          /* font-weight: 600; */ /* Optional bold */
+        }
+        /* Gedein font qty & harga khusus hotel */
+        .hotel-struk .item-qty,
+        .hotel-struk .item-price {
+            font-size: 12px !important; /* Samain sama font dasar hotel */
+        }
+        /* --- AKHIR REVISI KHUSUS HOTEL --- */
+
+
+        /* Style Reguler: Nama Item (Pastikan GAK kena hotel) */
+        /* Kita tambahin :not(.hotel-struk) biar gak bentrok */
+        .struk-container:not(.hotel-struk) .struk-items-list > div > p.font-semibold {
+           font-size: 12px !important;
         }
 
         /* Style Hotel: Baris Item */

@@ -83,7 +83,9 @@ const Struk = React.forwardRef(({ transaksi, pengaturan }, ref) => {
   return (
     <div
       ref={ref}
-      className="bg-white text-black font-mono text-[11px] w-[220px] mx-auto p-1 leading-tight"
+      className={`bg-white text-black font-mono text-[11px] w-[220px] mx-auto p-1 leading-tight ${
+        isHotel ? "hotel-struk struk-container" : "struk-container"
+      }`}
     >
       {/* Header (Kondisional) */}
       <div className="text-center mb-1">
