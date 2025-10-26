@@ -1,4 +1,4 @@
-// src/components/struk/PrintStrukButton.jsx (VERSI bodyClass FINAL)
+// src/components/struk/PrintStrukButton.jsx (VERSI pageStyle FINAL)
 
 import React from "react";
 import { useReactToPrint } from "react-to-print";
@@ -11,12 +11,45 @@ function PrintStrukButton({ componentRef, disabled }) {
     // 1. TETAP PAKAI contentRef
     contentRef: componentRef,
 
-    // 2. WAJIB PAKAI bodyClass (Ini yang ngebenerin bug h-0)
-    bodyClass: "print-struk-body",
+    // 2. HAPUS bodyClass
+    // bodyClass: "print-struk-body", // <-- HAPUS
 
     // 3. HAPUS SEMUA onBeforeGetContent / onAfterPrint
-    // (onBeforeGetContent: () => { ... HAPUS ... })
-    // (onAfterPrint: () => { ... HAPUS ... })
+
+    // 4. TAMBAHKAN pageStyle DENGAN CSS "NUKLIR"
+    pageStyle: `
+      /* 1. Atur halaman */
+      @page { 
+        size: 58mm auto; 
+        margin: 0 !important; 
+      }
+      
+      /* 2. Reset body iframe */
+      body {
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+
+      /* 3. SENJATA NUKLIR: Sembunyikan SEMUA elemen */
+      body * {
+        display: none !important;
+      }
+
+      /* 4. PENGECUALIAN: "Hidupkan" HANYA struk & anak-anaknya */
+      #struk-print-area,
+      #struk-print-area * {
+        display: block !important;
+        visibility: visible !important;
+      }
+
+      /* 5. "Buka" div struk-nya (lawan h-0, opacity-0) */
+      #struk-print-area {
+        height: auto !important;
+        opacity: 1 !important;
+        pointer-events: auto !important;
+        position: static !important;
+      }
+    `,
 
     documentTitle: "struk-transaksi",
     removeAfterPrint: false,
@@ -26,7 +59,7 @@ function PrintStrukButton({ componentRef, disabled }) {
     },
   });
 
-  // 4. Return button-nya (biarin, udah bener)
+  // 5. Return button-nya (biarin, udah bener)
   return (
     <Button
       onClick={() => {
