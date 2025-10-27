@@ -128,9 +128,11 @@ function HotelLaundryPage() {
 
         const { data: packageData, error: packageError } = await supabase
           .from("packages")
+          // Select-nya bisa disederhanain, kita nggak perlu join services lagi
           .select("*")
           .eq("business_id", authState.business_id)
-          .eq("service_id", serviceId)
+          .eq("service_id", serviceId) // <-- GANTI JADI INI (Pake serviceId dari pelanggan)
+          .order("urutan", { ascending: true }) // <-- Pastikan order by 'urutan'
           .order("name", { ascending: true });
 
         if (packageError) throw packageError;
@@ -357,6 +359,13 @@ function HotelLaundryPage() {
               <Label className="mb-2 block font-medium">
                 Input Jumlah Item
               </Label>
+              <p className="text-xs text-muted-foreground mb-3">
+                * Item yang ditandai{" "}
+                <span className="bg-green-100 text-green-800 px-1 rounded-sm">
+                  hijau
+                </span>{" "}
+                adalah item daily (harian).
+              </p>
               {loadingPackages ? (
                 <div className="flex justify-center py-4">
                   <Loader2 className="h-6 w-6 animate-spin" />
@@ -366,7 +375,14 @@ function HotelLaundryPage() {
                   {hotelPackages.map((pkg) => (
                     <div
                       key={pkg.id}
-                      className="flex items-center gap-4 p-2 border rounded-md"
+                      className={`
+                    flex items-center gap-4 p-2 border rounded-md transition-colors
+                    ${
+                      pkg.is_prioritas
+                        ? "bg-green-50 border-green-300 dark:bg-green-900/30 dark:border-green-700"
+                        : "bg-transparent"
+                    }
+                  `}
                     >
                       <Label
                         htmlFor={`qty-${pkg.id}`}

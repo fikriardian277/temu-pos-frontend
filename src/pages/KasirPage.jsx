@@ -377,7 +377,11 @@ function KasirPage() {
       const { data, error } = await supabase
         .from("categories")
         .select("*, services(*, packages(*))")
-        .eq("business_id", authState.business_id);
+        .eq("business_id", authState.business_id)
+        .order("urutan", { ascending: true })
+        .order("urutan", { foreignTable: "services", ascending: true })
+        .order("urutan", { foreignTable: "services.packages", ascending: true })
+        .order("name", { foreignTable: "services.packages", ascending: true });
       if (error) throw error;
       setAllCategories(data);
     } catch (error) {

@@ -50,6 +50,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/Dropdown-menu.jsx";
 
+import { Checkbox } from "@/components/ui/Checkbox.jsx";
+import { FormDescription } from "@/components/ui/Form.jsx";
+
 // Komponen Aksi yang bisa dipakai ulang
 const ActionMenu = ({ onEdit, onDelete }) => (
   <DropdownMenu>
@@ -116,9 +119,15 @@ function LayananManagementPage() {
         .from("categories")
         .select(`*, services (*, packages (*))`)
         .eq("business_id", authState.business_id)
-        .order("created_at", { ascending: true })
-        .order("created_at", { foreignTable: "services", ascending: true })
-        .order("created_at", {
+        .order("urutan", { ascending: true }) // Urutkan Kategori
+        .order("name", { ascending: true }) // Jika urutan sama, urutkan A-Z
+        .order("urutan", { foreignTable: "services", ascending: true }) // Urutkan Layanan
+        .order("name", { foreignTable: "services", ascending: true })
+        .order("urutan", {
+          foreignTable: "services.packages",
+          ascending: true,
+        }) // Urutkan Paket
+        .order("name", {
           foreignTable: "services.packages",
           ascending: true,
         });
@@ -242,6 +251,7 @@ function LayananManagementPage() {
           time_estimation: "",
           min_order: "",
           estimation_in_hours: "",
+          urutan: formData.urutan || 0,
         });
       } else {
         setFormData({}); // Default reset
@@ -270,13 +280,15 @@ function LayananManagementPage() {
 
       // PERUBAHAN #3: Selalu sertakan business_id saat INSERT
       if (type === "new_kategori") {
-        ({ error } = await supabase
-          .from("categories")
-          .insert({ name: formData.name, business_id }));
+        ({ error } = await supabase.from("categories").insert({
+          name: formData.name,
+          business_id,
+          urutan: formData.urutan || 0,
+        }));
       } else if (type === "edit_kategori") {
         ({ error } = await supabase
           .from("categories")
-          .update({ name: formData.name })
+          .update({ name: formData.name, urutan: formData.urutan || 0 })
           .eq("id", modalData.id)
           .eq("business_id", business_id));
       } else if (type === "new_layanan") {
@@ -284,11 +296,12 @@ function LayananManagementPage() {
           name: formData.name,
           category_id: modalData.id,
           business_id,
+          urutan: formData.urutan || 0,
         }));
       } else if (type === "edit_layanan") {
         ({ error } = await supabase
           .from("services")
-          .update({ name: formData.name })
+          .update({ name: formData.name, urutan: formData.urutan || 0 })
           .eq("id", modalData.id)
           .eq("business_id", business_id));
       } else if (type === "new_paket") {
@@ -301,6 +314,8 @@ function LayananManagementPage() {
           service_id: modalData.id,
           business_id,
           estimation_in_hours: formData.estimation_in_hours,
+          urutan: formData.urutan || 0,
+          is_prioritas: formData.is_prioritas || false,
         }));
       } else if (type === "edit_paket") {
         ({ error } = await supabase
@@ -312,6 +327,8 @@ function LayananManagementPage() {
             time_estimation: formData.time_estimation,
             min_order: formData.min_order,
             estimation_in_hours: formData.estimation_in_hours,
+            urutan: formData.urutan || 0,
+            is_prioritas: formData.is_prioritas || false,
           })
           .eq("id", modalData.id)
           .eq("business_id", business_id));
@@ -487,31 +504,71 @@ function LayananManagementPage() {
           <form onSubmit={handleSubmit} className="space-y-4 py-4">
             {(modalState.type === "new_kategori" ||
               modalState.type === "edit_kategori") && (
-              <div>
-                <Label htmlFor="name">Nama Kategori</Label>
-                <Input
-                  id="name"
-                  name="name" // BENERIN
-                  value={formData.name || ""} // BENERIN
-                  onChange={handleFormChange}
-                  required
-                  autoFocus
-                />
-              </div>
+              <>
+                {" "}
+                {/* <-- Tambah Fragment */}
+                <div>
+                  <Label htmlFor="name">Nama Kategori</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    value={formData.name || ""}
+                    onChange={handleFormChange}
+                    required
+                    autoFocus
+                  />
+                </div>
+                {/* VVV TAMBAH INPUT URUTAN DI SINI VVV */}
+                <div>
+                  <Label htmlFor="urutan">Nomor Urut (Opsional)</Label>
+                  <Input
+                    id="urutan"
+                    name="urutan"
+                    type="number"
+                    value={formData.urutan || ""}
+                    onChange={handleFormChange}
+                    placeholder="Misal: 10, 20, 30..."
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Semakin kecil angkanya, semakin di atas.
+                  </p>
+                </div>
+                {/* ^^^ SELESAI ^^^ */}
+              </>
             )}
             {(modalState.type === "new_layanan" ||
               modalState.type === "edit_layanan") && (
-              <div>
-                <Label htmlFor="name">Nama Layanan</Label>
-                <Input
-                  id="name"
-                  name="name" // BENERIN
-                  value={formData.name || ""} // BENERIN
-                  onChange={handleFormChange}
-                  required
-                  autoFocus
-                />
-              </div>
+              <>
+                {" "}
+                {/* <-- Tambah Fragment */}
+                <div>
+                  <Label htmlFor="name">Nama Layanan</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    value={formData.name || ""}
+                    onChange={handleFormChange}
+                    required
+                    autoFocus
+                  />
+                </div>
+                {/* VVV TAMBAH INPUT URUTAN DI SINI VVV */}
+                <div>
+                  <Label htmlFor="urutan">Nomor Urut (Opsional)</Label>
+                  <Input
+                    id="urutan"
+                    name="urutan"
+                    type="number"
+                    value={formData.urutan || ""}
+                    onChange={handleFormChange}
+                    placeholder="Misal: 10, 20, 30..."
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Semakin kecil angkanya, semakin di atas.
+                  </p>
+                </div>
+                {/* ^^^ SELESAI ^^^ */}
+              </>
             )}
             {(modalState.type === "new_paket" ||
               modalState.type === "edit_paket") && (
@@ -591,6 +648,45 @@ function LayananManagementPage() {
                   />
                   <p className="text-sm text-muted-foreground mt-1">
                     Isi 1 jika tidak ada minimal order.
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="urutan">Nomor Urut (Opsional)</Label>
+                  <Input
+                    id="urutan"
+                    name="urutan"
+                    type="number"
+                    value={formData.urutan || ""}
+                    onChange={handleFormChange}
+                    placeholder="Misal: 10, 20, 30..."
+                  />
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Semakin kecil angkanya, semakin di atas. Default 0.
+                  </p>
+                </div>
+
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="is_prioritas"
+                      name="is_prioritas"
+                      checked={formData.is_prioritas || false}
+                      onCheckedChange={(checked) => {
+                        // 'checked' bisa true/false/'indeterminate', kita pastikan boolean
+                        handleFormChange({
+                          target: { name: "is_prioritas", value: !!checked },
+                        });
+                      }}
+                    />
+                    <Label
+                      htmlFor="is_prioritas"
+                      className="text-sm font-medium leading-none"
+                    >
+                      Tandai sebagai Prioritas (Daily)
+                    </Label>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Item ini akan diberi tanda hijau di halaman Input Hotel.
                   </p>
                 </div>
               </>
