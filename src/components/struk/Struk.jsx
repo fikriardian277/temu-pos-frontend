@@ -349,6 +349,9 @@ const Struk = React.forwardRef(({ transaksi, pengaturan }, ref) => {
           </div>
         </div>
       )}
+      <br />
+      <br />
+      <br />
     </div>
   );
 });
