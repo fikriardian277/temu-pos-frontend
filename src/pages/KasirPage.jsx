@@ -378,6 +378,7 @@ function KasirPage() {
         .from("categories")
         .select("*, services(*, packages(*))")
         .eq("business_id", authState.business_id)
+        .neq("name", "Hotel & Villa")
         .order("urutan", { ascending: true })
         .order("urutan", { foreignTable: "services", ascending: true })
         .order("urutan", { foreignTable: "services.packages", ascending: true })
