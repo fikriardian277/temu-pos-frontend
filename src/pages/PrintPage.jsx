@@ -49,7 +49,7 @@ function PrintPage() {
         body { 
           margin: 0 !important; 
           padding: 0 !important; 
-          margin-bottom: 20px !important; /* Tambah jarak 10px di bawah */
+          
         }
 
         /* --- STYLING KHUSUS STRUK --- */
@@ -57,7 +57,7 @@ function PrintPage() {
         /* 3. Container Struk Utama (REVISI: Font Size 13px) */
         .struk-container {
           padding-top: 5px !important;
-          padding-bottom: 5px !important;
+          padding-bottom: 20px !important;
           background-color: white; color: black;
           
           /* === GANTI FONT === */
