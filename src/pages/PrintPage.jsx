@@ -44,7 +44,11 @@ function PrintPage() {
     <>
       <style>{`
         /* 1. Atur halaman print (biarin) */
-        @page { size: 58mm auto; margin: 0 !important; }
+        @page { 
+  size: 58mm auto;
+  margin: 0 0 5mm 0 !important; /* Tambah margin bawah 5mm */
+}
+
         
         /* 2. Reset body (biarin) */
         body { 
