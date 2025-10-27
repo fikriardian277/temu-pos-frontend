@@ -49,7 +49,7 @@ function PrintPage() {
         body { 
           margin: 0 !important; 
           padding: 0 !important; 
-          margin-bottom: 10px !important; /* Tambah jarak 10px di bawah */
+          margin-bottom: 20px !important; /* Tambah jarak 10px di bawah */
         }
 
         /* --- STYLING KHUSUS STRUK --- */
