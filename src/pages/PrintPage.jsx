@@ -72,7 +72,7 @@ function PrintPage() {
           
           /* === JAGA-JAGA BIAR ::after GAK KACAU === */
           position: relative; 
-          overflow: hidden; /* Balikin overflow hidden biar rapi */
+          overflow: visible !important;
         }
 
         /* VVV INI JURUS BARUNYA VVV */
@@ -80,7 +80,7 @@ function PrintPage() {
         .struk-container::after {
           content: ""; /* Wajib ada */
           display: block; /* Biar punya tinggi */
-          height: 20px; /* Jarak yang lu mau (coba 20px) */
+          height: 40px; /* Jarak yang lu mau (coba 20px) */
           width: 100%; /* Lebar penuh */
         }
         /* ^^^ SELESAI ^^^ */
