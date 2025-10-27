@@ -43,132 +43,66 @@ function PrintPage() {
   return (
     <>
       <style>{`
-        /* 1. Atur halaman print */
-        @page {
-          size: 58mm auto;
-          margin: 0 !important;
-        }
-
-        /* 2. Reset body halaman print */
-        body {
-          margin: 0 !important;
-          padding: 0 !important;
-        }
+        /* 1. Atur halaman print (biarin) */
+        @page { size: 58mm auto; margin: 0 !important; }
+        /* 2. Reset body (biarin) */
+        body { margin: 0 !important; padding: 0 !important; }
 
         /* --- STYLING KHUSUS STRUK --- */
 
-        /* 3. Container Struk Utama (REVISI: Tambah padding atas/bawah) */
-        .struk-container { 
-          padding-top: 5px !important; /* Tambah padding atas */
-          padding-bottom: 5px !important; /* Tambah padding bawah */
-          /* Style asli: */
-          background-color: white;
-          color: black;
-          font-family: monospace;
-          font-size: 11px;
-          width: 220px;
-          margin-left: auto;
-          margin-right: auto;
+        /* 3. Container Struk Utama (REVISI: Font Size 13px) */
+        .struk-container {
+          padding-top: 5px !important;
+          padding-bottom: 5px !important;
+          background-color: white; color: black;
           
+          /* === GANTI FONT === */
+          font-family: "Arial Narrow", Arial, sans-serif !important; 
+          font-size: 13px !important; /* Naikin lagi jadi 13px */
+          /* === SELESAI === */
+
+          width: 220px; margin-left: auto; margin-right: auto;
+          padding-left: 1px; /* Padding default tipis */
           padding-right: 1px;
-          line-height: 1.2; /* Sedikit renggangin antar baris */
+          line-height: 1.3; /* Tetap 1.3 */
         }
 
-.hotel-struk {
-          padding-left: 0 !important;  /* Hapus padding kiri */
-          padding-right: 0 !important; /* Hapus padding kanan */
-          font-size: 12px !important; /* Gedein font dasar hotel */
+        /* --- REVISI KHUSUS HOTEL --- */
+        /* Target kalo ada class .hotel-struk */
+        .hotel-struk {
+          padding-left: 0 !important;
+          padding-right: 0 !important;
+          /* Font size dasar hotel udah ngikut 13px */
         }
-        /* Gedein font nama item khusus hotel */
-        .hotel-struk .item-name {
-          font-size: 12px !important; /* Samain sama font dasar hotel */
-          /* font-weight: 600; */ /* Optional bold */
-        }
-        /* Gedein font qty & harga khusus hotel */
+        /* Item hotel ukurannya ngikut font dasar hotel (13px) */
+        .hotel-struk .item-name,
         .hotel-struk .item-qty,
         .hotel-struk .item-price {
-            font-size: 12px !important; /* Samain sama font dasar hotel */
+            font-size: 13px !important; /* Pastikan konsisten 13px */
         }
         /* --- AKHIR REVISI KHUSUS HOTEL --- */
 
 
-        /* Style Reguler: Nama Item (Pastikan GAK kena hotel) */
-        /* Kita tambahin :not(.hotel-struk) biar gak bentrok */
+        /* Style Reguler: Nama Item */
+        /* Biarkan kosong, ngikut 13px */
         .struk-container:not(.hotel-struk) .struk-items-list > div > p.font-semibold {
-           font-size: 12px !important;
+           /* Kosong */
         }
 
-        /* Style Hotel: Baris Item */
-        .item-row {
-          display: flex;
-          justify-content: space-between;
-          border-bottom: 1px dashed #ccc;
-          padding: 2px 0; /* Sedikit padding atas/bawah di item row */
-          align-items: center;
-        }
-        /* Style Hotel: Nama Item (REVISI: Font size) */
-        .item-name {
-          flex-grow: 1;
-          padding-right: 4px;
-          word-break: break-word;
-          font-size: 10px; /* Perkecil sedikit biar gak terlalu nabrak */
-          /* font-weight: 600; */ /* Optional: Bikin semi-bold kalo mau */
-        }
-        .item-qty {
-          width: 30px;
-          text-align: center;
-          flex-shrink: 0;
-          font-size: 10px; /* Samain font-size item */
-        }
-        .item-price {
-          width: 55px;
-          text-align: right;
-          flex-shrink: 0;
-          padding-left: 4px;
-          font-size: 10px; /* Samain font-size item */
-        }
-
-        /* Style Reguler: Nama Item (REVISI: Font size) */
-        /* Kita target <p> yang ada di dalam div item reguler */
-        .struk-items-list > div > p.font-semibold {
-           font-size: 12px !important; /* Perbesar sedikit */
-           /* font-weight: 600; */ /* Optional: Bikin semi-bold */
-        }
-
-
-        /* Style Total & Signature */
-        .total-row {
-          display: flex;
-          justify-content: space-between;
-        }
-        .signature-box {
-          margin-top: 20px; /* Tambah jarak atas */
-          display: flex;
-          justify-content: space-between;
-          text-align: center;
-          font-size: 9px;
-          min-height: 50px; /* REVISI: Tambah tinggi minimal area TTD */
-        }
-        .signature-col {
-          width: 45%;
-          display: flex; /* REVISI: Pake flexbox biar gampang ngatur jarak */
-          flex-direction: column;
-          justify-content: space-between; /* REVISI: Dorong teks ke atas & titik2 ke bawah */
-        }
-        .signature-col p:last-child { /* REVISI: Target titik-titik */
-          margin-top: 15px; /* Kasih jarak antara teks & titik2 */
-        }
-
-        /* Garis pemisah */
-        hr.border-dashed {
-           margin-top: 4px;
-           margin-bottom: 4px;
-        }
+        /* --- STYLING UMUM LAINNYA (Biarkan/Sesuaikan) --- */
+        .item-row { display: flex; justify-content: space-between; border-bottom: 1px dashed #ccc; padding: 2px 0; align-items: center; }
+        .item-name { flex-grow: 1; padding-right: 4px; word-break: break-word; }
+        .item-qty { width: 30px; text-align: center; flex-shrink: 0; }
+        .item-price { width: 55px; text-align: right; flex-shrink: 0; padding-left: 4px; }
+        .total-row { display: flex; justify-content: space-between; }
+        .signature-box { margin-top: 20px; display: flex; justify-content: space-between; text-align: center; font-size: 11px; min-height: 50px; } /* Naikkin font TTD jadi 11px */
+        .signature-col { width: 45%; display: flex; flex-direction: column; justify-content: space-between; }
+        .signature-col p:last-child { margin-top: 15px; }
+        hr.border-dashed { margin-top: 4px; margin-bottom: 4px; }
 
       `}</style>
 
       {/* Render komponen Struk-nya */}
-      {/* Pastikan div utama di Struk.jsx punya className="struk-container" */}
       <Struk ref={strukRef} transaksi={transaksi} pengaturan={pengaturan} />
     </>
   );

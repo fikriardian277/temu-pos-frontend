@@ -55,8 +55,7 @@ function KasirLayout() {
   const navItems = menuConfig.filter(
     (item) => !item.isHeader && item.roles.includes("kasir")
   );
-  console.log("NAV ITEMS UNTUK KASIR:", navItems);
-  console.log("ROLE SAAT INI:", authState.role);
+
   const kasirButton = navItems.find((item) => item.to === "/kasir");
 
   const handleLogout = () => {
@@ -66,7 +65,6 @@ function KasirLayout() {
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
-      {/* --- Sidebar untuk Tablet & Desktop --- */}
       <aside className="hidden md:flex md:w-64 bg-card border-r flex-col shadow-lg">
         <div className="p-4 h-16 flex items-center gap-3 border-b">
           <img

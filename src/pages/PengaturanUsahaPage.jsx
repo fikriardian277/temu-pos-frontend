@@ -230,6 +230,8 @@ function PengaturanUsahaPage() {
       if (saveError) throw saveError;
 
       toast.success("Pengaturan berhasil disimpan!");
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       await refetchAuthData();
     } catch (err) {
       toast.error(err.message || "Gagal menyimpan perubahan.");

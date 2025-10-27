@@ -18,8 +18,14 @@ import {
   Legend,
 } from "recharts";
 
-import { Loader2, Download } from "lucide-react";
-
+import {
+  Loader2,
+  Download,
+  RefreshCw,
+  MessageSquare,
+  Users,
+} from "lucide-react"; // <-- Tambahin RefreshCw
+import EmptyState from "@/components/ui/EmptyState.jsx"; // <-- TAMBAHIN INI
 // Impor komponen-komponen dari shadcn/ui
 import {
   Card,
@@ -76,12 +82,18 @@ function LaporanPage() {
       .split("T")[0],
     endDate: new Date().toISOString().split("T")[0],
     id_cabang: "semua",
+    tipe_order: "semua",
   });
 
   const [chartColors, setChartColors] = useState({
     stroke: "hsl(var(--primary))",
     text: "hsl(var(--foreground))",
   });
+
+  const [inactiveDays, setInactiveDays] = useState("30"); // Default 30 hari
+  const [inactiveCustomers, setInactiveCustomers] = useState([]);
+  const [loadingInactive, setLoadingInactive] = useState(false);
+  const [errorInactive, setErrorInactive] = useState("");
 
   // Efek untuk mengambil warna tema (tidak berubah)
   useEffect(() => {
@@ -141,6 +153,7 @@ function LaporanPage() {
           p_end_date: filters.endDate,
           p_target_branch_id: targetBranchId,
           p_business_id: authState.business_id,
+          p_tipe_order: filters.tipe_order,
         });
         // ^^^ SELESAI ^^^
 
@@ -293,12 +306,65 @@ function LaporanPage() {
 
   // Handler untuk mengubah filter tanggal
   const handleFilterChange = (e) => {
-    setFilters((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    // Ini bisa nerima event (e) atau object palsu ({ target: { name, value } })
+    const { name, value } = e.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
   };
 
   // Handler untuk mengubah filter cabang
   const handleCabangChange = (value) => {
     setFilters((prev) => ({ ...prev, id_cabang: value }));
+  };
+
+  const handleFetchInactive = async () => {
+    if (!authState.isReady || !authState.business_id) return;
+
+    setLoadingInactive(true);
+    setErrorInactive("");
+    setInactiveCustomers([]); // Kosongkan hasil lama
+    try {
+      const targetBranchId =
+        authState.role === "owner" ? null : authState.branch_id;
+
+      const { data, error } = await supabase.rpc("get_inactive_customers", {
+        p_business_id: authState.business_id,
+        p_branch_id: targetBranchId,
+        p_inactivity_days: parseInt(inactiveDays), // Kirim 30, 60, atau 90
+      });
+
+      if (error) throw error;
+      setInactiveCustomers(data || []);
+      if (data.length === 0) {
+        toast.info("Tidak ditemukan pelanggan tidak aktif pada periode ini.");
+      }
+    } catch (err) {
+      console.error("Gagal fetch pelanggan tidak aktif:", err);
+      setErrorInactive("Gagal memuat data: " + err.message);
+      toast.error("Gagal memuat data pelanggan tidak aktif.");
+    } finally {
+      setLoadingInactive(false);
+    }
+  };
+
+  // --- FUNGSI BARU UNTUK KIRIM WA KE PELANGGAN TIDAK AKTIF ---
+  const handleSendInactiveWA = (phone_number) => {
+    if (!phone_number) {
+      toast.error("Pelanggan ini tidak memiliki nomor HP.");
+      return;
+    }
+    const nomorHPNormalized = (phone_number || "").trim();
+    const nomorHPFormatted = nomorHPNormalized.startsWith("0")
+      ? "62" + nomorHPNormalized.substring(1)
+      : nomorHPNormalized;
+
+    // Template pesan sapaan (bisa dikustomisasi)
+    const pesan =
+      "Halo, kami dari Temu POS Laundry. Sudah lama nih nggak mampir, ada promo menarik lho buat kamu! 😊";
+
+    const url = `https://api.whatsapp.com/send?phone=${nomorHPFormatted}&text=${encodeURIComponent(
+      pesan
+    )}`;
+    window.open(url, "_blank");
   };
 
   const PIE_COLORS = [
@@ -347,7 +413,9 @@ function LaporanPage() {
                 <Label htmlFor="cabang">Cabang</Label>
                 <Select
                   value={filters.id_cabang}
-                  onValueChange={handleCabangChange}
+                  onValueChange={(value) =>
+                    handleFilterChange({ target: { name: "id_cabang", value } })
+                  }
                 >
                   <SelectTrigger id="cabang">
                     <SelectValue placeholder="Pilih Cabang" />
@@ -364,6 +432,24 @@ function LaporanPage() {
                 </Select>
               </div>
             )}
+            <div>
+              <Label htmlFor="tipe_order">Tipe Laporan</Label>
+              <Select
+                value={filters.tipe_order}
+                onValueChange={(value) =>
+                  handleFilterChange({ target: { name: "tipe_order", value } })
+                }
+              >
+                <SelectTrigger id="tipe_order">
+                  <SelectValue placeholder="Pilih Tipe Laporan" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="semua">Semua Tipe</SelectItem>
+                  <SelectItem value="reguler">Reguler</SelectItem>
+                  <SelectItem value="hotel">Hotel/Villa</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="mt-4 flex justify-end">
             <Button
@@ -555,6 +641,101 @@ function LaporanPage() {
           Tidak ada data untuk rentang filter yang dipilih.
         </p>
       )}
+
+      <hr className="my-8" />
+      <Card>
+        <CardHeader>
+          <CardTitle>Laporan Pelanggan Tidak Aktif</CardTitle>
+          <CardDescription>
+            Temukan pelanggan reguler yang sudah lama tidak bertransaksi untuk
+            di-follow up.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Filter & Tombol Refresh */}
+          <div className="flex flex-col md:flex-row gap-4 mb-4">
+            <div className="flex-1">
+              <Label htmlFor="inactive-days">Tidak Transaksi Selama</Label>
+              <Select value={inactiveDays} onValueChange={setInactiveDays}>
+                <SelectTrigger id="inactive-days">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30">30 Hari Terakhir</SelectItem>
+                  <SelectItem value="60">60 Hari Terakhir</SelectItem>
+                  <SelectItem value="90">90 Hari Terakhir</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-end">
+              <Button onClick={handleFetchInactive} disabled={loadingInactive}>
+                {loadingInactive ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Tampilkan Data
+              </Button>
+            </div>
+          </div>
+
+          {/* Tabel Hasil */}
+          {loadingInactive ? (
+            <div className="flex justify-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin" />
+            </div>
+          ) : errorInactive ? (
+            <p className="text-center text-destructive py-10">
+              {errorInactive}
+            </p>
+          ) : inactiveCustomers.length > 0 ? (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nama Pelanggan</TableHead>
+                    <TableHead>Nomor HP</TableHead>
+                    <TableHead>Transaksi Terakhir</TableHead>
+                    <TableHead className="text-right">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {inactiveCustomers.map((customer) => (
+                    <TableRow key={customer.id_pelanggan}>
+                      <TableCell className="font-medium text-primary">
+                        {customer.nama_pelanggan}
+                      </TableCell>
+                      <TableCell>{customer.nomor_hp || "-"}</TableCell>
+                      <TableCell>
+                        {customer.tanggal_transaksi_terakhir}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="bg-green-500 text-white hover:bg-green-600 hover:text-white"
+                          onClick={() =>
+                            handleSendInactiveWA(customer.nomor_hp)
+                          }
+                          disabled={!customer.nomor_hp} // Disable jika tidak ada No. HP
+                        >
+                          <MessageSquare className="w-4 h-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <EmptyState
+              icon={<Users className="h-16 w-16" />}
+              title="Tidak Ada Data"
+              description="Klik 'Tampilkan Data' untuk mencari pelanggan tidak aktif."
+            />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

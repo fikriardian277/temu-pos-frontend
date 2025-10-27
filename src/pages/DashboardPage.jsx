@@ -265,7 +265,7 @@ const KasirDashboard = ({ data }) => {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="secondary">{tx.status_proses}</Badge>
+                      <Badge variant="secondary">{tx.process_status}</Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       Rp {tx.grand_total.toLocaleString("id-ID")}

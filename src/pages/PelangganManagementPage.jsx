@@ -523,13 +523,16 @@ function PelangganManagementPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+        {" "}
+        {/* Tambah gap-4 */}
         <h1 className="text-3xl font-bold">Manajemen Pelanggan</h1>
         <Button
           onClick={() => {
             form.reset();
             setIsNewModalOpen(true);
           }}
+          className="w-full md:w-auto" // <-- Buat tombol full-width di HP
         >
           <PlusCircle className="mr-2 h-4 w-4" />
           Tambah Pelanggan
@@ -540,20 +543,24 @@ function PelangganManagementPage() {
         <CardHeader>
           <div className="flex justify-between items-center">
             <CardTitle>Daftar Pelanggan</CardTitle>
-            {/* VVV TAMBAH TOMBOL DI SINI VVV */}
-            <Button
-              onClick={handleDownloadCSV} // <-- Fungsi yang akan kita buat
-              disabled={loading || loadingCSV || pelanggans.length === 0} // <-- Disable saat loading/kosong
-              size="sm"
-            >
-              {loadingCSV ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="mr-2 h-4 w-4" />
-              )}
-              Download CSV
-            </Button>
-            {/* ^^^ SELESAI TOMBOL ^^^ */}
+
+            {/* VVV TAMBAH KONDISI DI SINI VVV */}
+            {/* Tampilkan tombol HANYA jika role BUKAN kasir */}
+            {(authState.role === "owner" || authState.role === "admin") && (
+              <Button
+                onClick={handleDownloadCSV}
+                disabled={loading || loadingCSV || pelanggans.length === 0}
+                size="sm"
+              >
+                {loadingCSV ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="mr-2 h-4 w-4" />
+                )}
+                Download CSV
+              </Button>
+            )}
+            {/* ^^^ SELESAI KONDISI ^^^ */}
           </div>
 
           <CardDescription>

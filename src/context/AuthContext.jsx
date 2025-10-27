@@ -112,13 +112,6 @@ export function AuthProvider({ children }) {
         } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
           if (!isMounted.current) return;
 
-          console.log(
-            "Auth State Change Event Diterima:",
-            _event,
-            "Sesi Baru?",
-            !!newSession
-          );
-
           const currentUserId = session?.user?.id;
           const newUserId = newSession?.user?.id;
 
