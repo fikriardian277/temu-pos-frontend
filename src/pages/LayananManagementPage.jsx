@@ -462,7 +462,7 @@ function LayananManagementPage() {
                         ) => (
                           <div
                             key={paket.id}
-                            className="flex justify-between items-center pl-2"
+                            className="flex justify-between items-center pl-2 rounded-md transition-colors duration-150 hover:bg-muted/50 cursor-pointer"
                           >
                             <div>
                               <p>

@@ -42,9 +42,80 @@ import {
   ArrowRight,
   ClipboardList,
   Loader2,
+  Clock,
 } from "lucide-react";
 import EmptyState from "@/components/ui/EmptyState.jsx";
 
+function getDeadlineStatus(estimatedCompletionDate, items = []) {
+  if (!estimatedCompletionDate) return { className: "", badgeText: null }; // Kalo tanggal gak ada
+
+  const now = new Date();
+  const deadline = new Date(estimatedCompletionDate);
+  const diffHours = (deadline - now) / (1000 * 60 * 60); // Sisa waktu dalam jam
+
+  // Cek tipe durasi dari nama paket PERTAMA (asumsi 1 order = 1 tipe)
+  let durationType = "reguler"; // Default
+  // Pastikan ambil nama paket dari struktur data RPC yang benar
+  const firstPackageName = items?.[0]?.packages?.name?.toLowerCase() || "";
+  if (firstPackageName.includes("kilat")) {
+    // <-- Sesuaikan keyword jika perlu
+    durationType = "kilat";
+  } else if (
+    firstPackageName.includes("express") ||
+    firstPackageName.includes("ekspres")
+  ) {
+    // <-- Sesuaikan keyword jika perlu
+    durationType = "ekspres";
+  }
+
+  // Hitung sisa hari/jam untuk badge
+  let badgeText = null;
+  let badgeVariant = "secondary"; // Warna default badge
+  if (diffHours >= 24) {
+    badgeText = `Sisa ${Math.floor(diffHours / 24)} hari`;
+  } else if (diffHours > 0) {
+    badgeText = `Sisa ${Math.floor(diffHours)} jam`;
+  } else {
+    badgeText = `Telat ${Math.abs(Math.round(diffHours))} jam`; // Bulatkan jam telat
+    badgeVariant = "destructive"; // Merah kalo telat
+  }
+
+  /// --- ATURAN WARNA KARTU & SKOR PRIORITAS ---
+  // Default: Normal
+  let priorityScore = 1;
+  let className = "";
+
+  // Rule 1: Lewat Deadline
+  if (diffHours < 0) {
+    priorityScore = 4; // Skor tertinggi
+    className = "bg-red-200 dark:bg-red-900"; // Merah Muda / Merah Tua (Telat)
+  }
+  // Rule 2: Mendekati Deadline (<= 2 Jam)
+  else if (diffHours <= 2) {
+    priorityScore = 3; // Skor tinggi
+    className = "bg-red-100 dark:bg-red-800"; // Merah Pudar / Merah Sedang (Urgent)
+  }
+  // Rule 3: Cek Tipe Paket
+  else if (durationType === "kilat") {
+    priorityScore = 3; // Kilat -> sama urgentnya
+    className = "bg-red-100 dark:bg-red-800";
+  } else if (durationType === "ekspres") {
+    priorityScore = 2; // Skor menengah
+    className = "bg-yellow-100 dark:bg-yellow-900"; // Ekspres -> Kuning
+    badgeVariant = "warning";
+  }
+  // Rule 4: Reguler (>= 3 hari) - Warning H-1
+  else if (durationType === "reguler" && diffHours <= 24) {
+    priorityScore = 2; // Skor menengah
+    className = "bg-yellow-100 dark:bg-yellow-900"; // Reguler H-1 -> Kuning
+    badgeVariant = "warning";
+  }
+
+  // Kalo gak masuk semua rule di atas (Normal)
+  // priorityScore tetap 1, className tetap ""
+
+  return { className, badgeText, badgeVariant, priorityScore }; // <-- Tambah priorityScore
+}
 // ==========================================================
 // "RESEP" TransaksiCard DIBENERIN DI SINI
 // ==========================================================
@@ -54,37 +125,57 @@ const TransaksiCard = ({
   onSelesaikan,
   isUpdating,
 }) => {
-  // BENERIN: Gunakan nama kolom asli
-  const { process_status, payment_status, service_type } = transaksi;
+  // Ambil data yang diperlukan
+  const {
+    process_status,
+    payment_status,
+    service_type,
+    estimated_completion_date,
+    order_items,
+    invoice_code,
+    customers,
+  } = transaksi;
 
   const getStatusVariant = () => {
-    if (payment_status === "Lunas") return "success";
-    if (payment_status === "Belum Lunas") return "warning";
-    return "secondary";
+    /* ... (biarin) ... */
   };
 
+  // Panggil fungsi warning
+  const deadlineInfo = getDeadlineStatus(
+    estimated_completion_date,
+    order_items
+  );
+
   return (
-    <Card className="mb-4 shadow-md">
+    // Terapkan class warna di sini
+    <Card className={`mb-4 shadow-md ${deadlineInfo.className}`}>
       <CardHeader className="p-4">
         <div className="flex justify-between items-start">
           <div>
             <CardTitle className="text-base">
-              {/* BENERIN: transaksi.customers.name */}
-              {transaksi.customers?.name || "N/A"}
+              {customers?.name || "N/A"}
             </CardTitle>
             <CardDescription className="text-xs">
-              {/* BENERIN: transaksi.invoice_code */}
-              {transaksi.invoice_code}
+              {invoice_code}
             </CardDescription>
+            {/* Tampilkan badge sisa waktu */}
+            {deadlineInfo.badgeText && (
+              <Badge
+                variant={deadlineInfo.badgeVariant}
+                className="mt-1 text-xs"
+              >
+                <Clock className="mr-1 h-3 w-3" /> {/* Tambah ikon jam */}
+                {deadlineInfo.badgeText}
+              </Badge>
+            )}
           </div>
           <Badge variant={getStatusVariant()}>{payment_status}</Badge>
         </div>
       </CardHeader>
       <CardContent className="p-4 text-xs text-muted-foreground space-y-1">
-        {/* BENERIN: Loop lewat 'order_items' */}
-        {transaksi.order_items?.map((item) => (
+        {order_items?.map((item) => (
           <p key={item.id} className="truncate">
-            • {item.packages?.name || "Nama Paket Error"}
+            • {item.packages?.name || "Nama Paket Error"}{" "}
           </p>
         ))}
       </CardContent>
@@ -256,6 +347,44 @@ function ProsesPage() {
     }
   }, [searchTerm, authState.business_id, authState.role, authState.branch_id]);
 
+  const sortedAndFilteredTransaksi = React.useMemo(() => {
+    // 1. Tambahin skor ke tiap transaksi
+    const transaksiWithScore = transaksi.map((tx) => ({
+      ...tx,
+      // Panggil getDeadlineStatus cuma buat ambil skornya
+      priorityScore: getDeadlineStatus(
+        tx.estimated_completion_date,
+        tx.order_items
+      ).priorityScore,
+    }));
+
+    // 2. Sortir berdasarkan skor (tertinggi dulu), lalu berdasarkan tanggal (terlama dulu)
+    transaksiWithScore.sort((a, b) => {
+      // Urutkan berdasarkan skor prioritas (turun)
+      if (b.priorityScore !== a.priorityScore) {
+        return b.priorityScore - a.priorityScore;
+      }
+      // Kalo skornya sama, urutkan berdasarkan tanggal dibuat (naik)
+      return new Date(a.created_at) - new Date(b.created_at);
+    });
+
+    // 3. Filter data yang SUDAH DISORTIR ke kolom-kolom
+    const diterima = transaksiWithScore.filter(
+      (tx) => tx.process_status === "Diterima"
+    );
+    const prosesCuci = transaksiWithScore.filter(
+      (tx) => tx.process_status === "Proses Cuci"
+    );
+    const siapDiambil = transaksiWithScore.filter(
+      (tx) => tx.process_status === "Siap Diambil"
+    );
+    const prosesPengantaran = transaksiWithScore.filter(
+      (tx) => tx.process_status === "Proses Pengantaran"
+    );
+
+    return { diterima, prosesCuci, siapDiambil, prosesPengantaran };
+  }, [transaksi]);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       fetchData();
@@ -364,23 +493,28 @@ function ProsesPage() {
     // VVV INI YANG BENER VVV
     await finalizeOrder(currentTx.id, { payment_method: metodePembayaran });
   };
-  // Filter data (BENERIN: pake nama kolom asli)
-  const diterima = transaksi.filter((tx) => tx.process_status === "Diterima");
-  const prosesCuci = transaksi.filter(
-    (tx) => tx.process_status === "Proses Cuci"
-  );
-  const siapDiambil = transaksi.filter(
-    (tx) => tx.process_status === "Siap Diambil"
-  );
-  const prosesPengantaran = transaksi.filter(
-    (tx) => tx.process_status === "Proses Pengantaran"
-  );
 
   const statusList = [
-    { title: "Diterima", data: diterima, value: "terima" },
-    { title: "Proses Cuci", data: prosesCuci, value: "cuci" },
-    { title: "Siap Diambil", data: siapDiambil, value: "siap" },
-    { title: "Proses Pengantaran", data: prosesPengantaran, value: "antar" },
+    {
+      title: "Diterima",
+      data: sortedAndFilteredTransaksi.diterima,
+      value: "terima",
+    },
+    {
+      title: "Proses Cuci",
+      data: sortedAndFilteredTransaksi.prosesCuci,
+      value: "cuci",
+    },
+    {
+      title: "Siap Diambil",
+      data: sortedAndFilteredTransaksi.siapDiambil,
+      value: "siap",
+    },
+    {
+      title: "Proses Pengantaran",
+      data: sortedAndFilteredTransaksi.prosesPengantaran,
+      value: "antar",
+    },
   ];
 
   const activeMobileData =

@@ -4,15 +4,7 @@ import React, { useState } from "react";
 import { Outlet, useNavigate, NavLink, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/context/ThemeContext";
-import {
-  LogOut,
-  UserCircle,
-  ChevronsLeft,
-  ChevronsRight,
-  Menu,
-  Moon,
-  Sun,
-} from "lucide-react";
+import { LogOut, UserCircle, Menu, Moon, Sun } from "lucide-react";
 import { menuConfig } from "@/lib/menuConfig.jsx";
 
 // Komponen-komponen dari shadcn/ui
@@ -32,7 +24,7 @@ function AdminLayout() {
   const location = useLocation();
   const { authState, logout } = useAuth();
 
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(true);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   const navItems = menuConfig.filter((item) =>
@@ -61,41 +53,35 @@ function AdminLayout() {
           />
           <h1
             className={`text-xl font-bold text-primary whitespace-nowrap overflow-hidden transition-all duration-300 ${
-              isSidebarCollapsed ? "w-0" : "w-auto"
+              isSidebarCollapsed ? "w-0 opacity-0" : "w-auto opacity-100"
             }`}
           >
             Super app
           </h1>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="hidden lg:flex"
-          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        >
-          {isSidebarCollapsed ? (
-            <ChevronsRight size={20} />
-          ) : (
-            <ChevronsLeft size={20} />
-          )}
-        </Button>
       </div>
 
-      <nav className="flex-grow px-2 py-4 overflow-y-auto">
+      <nav className="flex-grow px-2 py-4 overflow-y-auto scrollbar-hide">
         <ul className="space-y-1">
           {navItems?.map((item) =>
             item.isHeader ? (
               <li
                 key={item.key}
-                className={`pt-4 pb-1 ${isSidebarCollapsed && "text-center"}`}
+                // VVV UBAH CLASSNAME LI INI VVV
+                // Tetapkan tinggi tetap (misal h-8), hapus animasi tinggi/padding
+                className="h-8 flex items-center" // <-- Tinggi tetap, hapus pt/pb lama
+                // ^^^ SELESAI UBAH LI ^^^
               >
+                {/* VVV UBAH CLASSNAME SPAN INI VVV */}
                 <span
-                  className={`px-3 text-xs font-semibold text-muted-foreground ${
-                    isSidebarCollapsed && "hidden"
+                  // Pake padding horizontal, atur opacity
+                  className={`px-3 text-xs font-semibold text-muted-foreground transition-opacity duration-300 ${
+                    isSidebarCollapsed
+                      ? "opacity-0 invisible"
+                      : "opacity-100 visible" // <-- Hanya opacity & visibility
                   }`}
+                  // ^^^ SELESAI UBAH SPAN ^^^
                 >
-                  {" "}
-                  {/* [FIX] Gunakan warna tema */}
                   {item.label}
                 </span>
               </li>
@@ -105,19 +91,29 @@ function AdminLayout() {
                   to={item.to}
                   onClick={() => setIsMobileSidebarOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 p-3 rounded-md transition-colors text-foreground/70 ${
-                      isSidebarCollapsed ? "justify-center" : ""
-                    } ${
+                    // VVV TAMBAH h-12 (tinggi tetap) & overflow-hidden VVV
+                    `flex items-center gap-3 h-12 px-3 rounded-md transition-colors text-foreground/70 overflow-hidden  ${
                       isActive
-                        ? "bg-primary text-primary-foreground" // [FIX] Gaya aktif pakai warna primer
-                        : "hover:bg-muted hover:text-foreground" // [FIX] Gaya hover pakai warna tema
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted hover:text-foreground"
                     }`
                   }
                 >
-                  {item.icon}
-                  <span className={`${isSidebarCollapsed ? "lg:hidden" : ""}`}>
+                  {/* Icon tetap di kiri, kasih flex-shrink-0 biar gak kegencet */}
+                  <div className="flex-shrink-0">{item.icon}</div>
+
+                  {/* VVV UBAH ANIMASI SPAN VVV */}
+                  <span
+                    className={`whitespace-nowrap transition-all duration-300 overflow-hidden ${
+                      // <-- Tambah overflow-hidden di span
+                      isSidebarCollapsed
+                        ? "lg:opacity-0 lg:max-w-0" // <-- Pake max-w-0 dan opacity-0
+                        : "lg:opacity-100 lg:max-w-xs" // <-- Balikin max-w (misal max-w-xs) dan opacity-100
+                    }`}
+                  >
                     {item.label}
                   </span>
+                  {/* ^^^ SELESAI ^^^ */}
                 </NavLink>
               </li>
             )
@@ -132,12 +128,13 @@ function AdminLayout() {
     <div className="flex min-h-screen bg-background text-foreground">
       {/* --- SIDEBAR DESKTOP --- */}
       <aside
-        className={`hidden lg:flex flex-col bg-card border-r shadow-lg transition-all duration-300 ${
+        className={`hidden lg:flex flex-col ... fixed ... ${
+          // <-- Pastikan class fixed dll dari kemarin udah ada
           isSidebarCollapsed ? "w-20" : "w-64"
         }`}
+        onMouseEnter={() => setIsSidebarCollapsed(false)} // <-- TAMBAH INI
+        onMouseLeave={() => setIsSidebarCollapsed(true)} // <-- TAMBAH INI
       >
-        {" "}
-        {/* [FIX] */}
         <SidebarContent />
       </aside>
 
@@ -158,7 +155,12 @@ function AdminLayout() {
         ></div>
       )}
 
-      <div className="flex-1 flex flex-col overflow-x-hidden">
+      <div
+        className={`flex-1 flex flex-col overflow-x-hidden transition-all duration-300 ${
+          // <-- Tambah transition-all
+          isSidebarCollapsed ? "lg:pl-20" : "lg:pl-64" // <-- TAMBAH PADDING KIRI KONDISIONAL
+        }`}
+      >
         {/* --- HEADER ATAS --- */}
         <header className="h-16 flex items-center justify-between lg:justify-end px-6 bg-card/80 backdrop-blur-sm border-b sticky top-0 z-20">
           {" "}
@@ -219,7 +221,9 @@ function AdminLayout() {
           </DropdownMenu>
         </header>
 
-        <main className="flex-grow p-6 lg:p-8 overflow-y-auto">
+        <main className="flex-grow p-6 lg:p-8 overflow-y-auto h-[calc(100vh-4rem)]">
+          {" "}
+          {/* <-- TAMBAH h-[calc(100vh-4rem)] */}
           <Outlet />
         </main>
       </div>
