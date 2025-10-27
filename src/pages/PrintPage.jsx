@@ -46,7 +46,11 @@ function PrintPage() {
         /* 1. Atur halaman print (biarin) */
         @page { size: 58mm auto; margin: 0 !important; }
         /* 2. Reset body (biarin) */
-        body { margin: 0 !important; padding: 0 !important; }
+        body { 
+          margin: 0 !important; 
+          padding: 0 !important; 
+          margin-bottom: 10px !important; /* Tambah jarak 10px di bawah */
+        }
 
         /* --- STYLING KHUSUS STRUK --- */
 
