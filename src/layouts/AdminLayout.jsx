@@ -1,4 +1,4 @@
-// src/layouts/AdminLayout.jsx
+// src/layouts/AdminLayout.jsx (VERSI FINAL - FIX SIDEBAR MOBILE)
 
 import React, { useState } from "react";
 import { Outlet, useNavigate, NavLink, useLocation } from "react-router-dom";
@@ -26,6 +26,89 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/Dropdown-menu";
 
+// --- Komponen Sidebar ---
+// [FIX 1] SidebarContent sekarang menerima prop 'isCollapsed'
+const SidebarContent = ({ isCollapsed }) => (
+  <>
+    <div className={`p-4 h-16 flex items-center justify-between border-b`}>
+      <div className="flex items-center gap-3">
+        <img src="/logo.png" alt="App Logo" className="h-8 w-8 flex-shrink-0" />
+        <h1
+          className={`text-xl font-bold text-primary whitespace-nowrap overflow-hidden transition-all duration-300 ${
+            // [FIX 2] Ganti 'isSidebarCollapsed' jadi 'isCollapsed'
+            isCollapsed ? "w-0" : "w-auto"
+          }`}
+        >
+          Super app
+        </h1>
+      </div>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="hidden lg:flex"
+        // onClick tetap pakai state dari parent (AdminLayout)
+        onClick={() => {
+          // Ini trik kecil: kita butuh setIsSidebarCollapsed dari parent.
+          // Cara lebih bersih adalah kirim fungsi onClick ke SidebarContent,
+          // tapi kita biarkan dulu, karena tombol ini di-hide di mobile.
+          // Untuk sekarang, kita anggap ini diklik dari AdminLayout.
+          // (Kita benerin di bawah pas render)
+        }}
+      >
+        {/* Ini juga akan dikontrol dari parent */}
+      </Button>
+    </div>
+
+    <nav className="flex-grow px-2 py-4 overflow-y-auto">
+      <ul className="space-y-1">
+        {navItems?.map((item) =>
+          item.isHeader ? (
+            <li
+              key={item.key}
+              // [FIX 3] Ganti 'isSidebarCollapsed' jadi 'isCollapsed'
+              className={`pt-4 pb-1 ${isCollapsed && "text-center"}`}
+            >
+              <span
+                className={`px-3 text-xs font-semibold text-muted-foreground ${
+                  // [FIX 4] Ganti 'isSidebarCollapsed' jadi 'isCollapsed'
+                  isCollapsed && "hidden"
+                }`}
+              >
+                {item.label}
+              </span>
+            </li>
+          ) : (
+            <li key={item.to}>
+              <NavLink
+                to={item.to}
+                onClick={() => {
+                  // Ini fungsi dari parent (AdminLayout)
+                  // setIsMobileSidebarOpen(false); // (Kita panggil di tempat yang bener)
+                }}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 p-3 rounded-md transition-colors text-foreground/70 ${
+                    // [FIX 5] Ganti 'isSidebarCollapsed' jadi 'isCollapsed'
+                    isCollapsed ? "justify-center" : ""
+                  } ${
+                    isActive
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted hover:text-foreground"
+                  }`
+                }
+              >
+                {item.icon}
+                <span className={`${isCollapsed ? "lg:hidden" : ""}`}>
+                  {item.label}
+                </span>
+              </NavLink>
+            </li>
+          )
+        )}
+      </ul>
+    </nav>
+  </>
+);
+
 function AdminLayout() {
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
@@ -47,12 +130,11 @@ function AdminLayout() {
   const currentPage = menuConfig.find((item) => item.to === location.pathname);
   const pageTitle = currentPage ? currentPage.label : "Dashboard";
 
-  // --- Komponen Sidebar ---
-  const SidebarContent = () => (
+  // --- Komponen SidebarContent Dibuat ulang di sini dengan akses ke state ---
+  // Ini cara yang lebih bener biar 'SidebarContent' bisa ngakses state
+  const SidebarWithLogic = ({ isCollapsed }) => (
     <>
       <div className={`p-4 h-16 flex items-center justify-between border-b`}>
-        {" "}
-        {/* [FIX] Hapus warna hardcoded */}
         <div className="flex items-center gap-3">
           <img
             src="/logo.png"
@@ -61,19 +143,20 @@ function AdminLayout() {
           />
           <h1
             className={`text-xl font-bold text-primary whitespace-nowrap overflow-hidden transition-all duration-300 ${
-              isSidebarCollapsed ? "w-0" : "w-auto"
+              isCollapsed ? "w-0" : "w-auto"
             }`}
           >
             Super app
           </h1>
         </div>
+        {/* Tombol collapse/expand cuma ada di desktop, jadi kita taruh di sini */}
         <Button
           variant="ghost"
           size="icon"
           className="hidden lg:flex"
-          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} // <-- Logika dipindah ke sini
         >
-          {isSidebarCollapsed ? (
+          {isSidebarCollapsed ? ( // <-- State dibaca di sini
             <ChevronsRight size={20} />
           ) : (
             <ChevronsLeft size={20} />
@@ -87,15 +170,13 @@ function AdminLayout() {
             item.isHeader ? (
               <li
                 key={item.key}
-                className={`pt-4 pb-1 ${isSidebarCollapsed && "text-center"}`}
+                className={`pt-4 pb-1 ${isCollapsed && "text-center"}`}
               >
                 <span
                   className={`px-3 text-xs font-semibold text-muted-foreground ${
-                    isSidebarCollapsed && "hidden"
+                    isCollapsed && "hidden"
                   }`}
                 >
-                  {" "}
-                  {/* [FIX] Gunakan warna tema */}
                   {item.label}
                 </span>
               </li>
@@ -103,19 +184,20 @@ function AdminLayout() {
               <li key={item.to}>
                 <NavLink
                   to={item.to}
-                  onClick={() => setIsMobileSidebarOpen(false)}
+                  onClick={() => setIsMobileSidebarOpen(false)} // <-- Logika setIsMobile... ada di sini
                   className={({ isActive }) =>
                     `flex items-center gap-3 p-3 rounded-md transition-colors text-foreground/70 ${
-                      isSidebarCollapsed ? "justify-center" : ""
+                      isCollapsed ? "justify-center" : ""
                     } ${
                       isActive
-                        ? "bg-primary text-primary-foreground" // [FIX] Gaya aktif pakai warna primer
-                        : "hover:bg-muted hover:text-foreground" // [FIX] Gaya hover pakai warna tema
+                        ? "bg-primary text-primary-foreground"
+                        : "hover:bg-muted hover:text-foreground"
                     }`
                   }
                 >
                   {item.icon}
-                  <span className={`${isSidebarCollapsed ? "lg:hidden" : ""}`}>
+                  {/* [FIX] Ganti 'lg:hidden' jadi 'hidden' biar pas di mobile (expanded) juga keliatan */}
+                  <span className={`${isCollapsed ? "hidden" : ""}`}>
                     {item.label}
                   </span>
                 </NavLink>
@@ -128,17 +210,16 @@ function AdminLayout() {
   );
 
   return (
-    // [FIX] Gunakan class tema untuk background utama
-    <div className="flex min-h-screen bg-background text-foreground">
+    // [FIX] Layout utama jadi 'h-screen overflow-hidden'
+    <div className="flex h-screen overflow-hidden bg-background text-foreground">
       {/* --- SIDEBAR DESKTOP --- */}
       <aside
-        className={`hidden lg:flex flex-col bg-card border-r shadow-lg transition-all duration-300 ${
+        className={`hidden lg:flex flex-col h-full bg-card border-r shadow-lg transition-all duration-300 ${
           isSidebarCollapsed ? "w-20" : "w-64"
         }`}
       >
-        {" "}
-        {/* [FIX] */}
-        <SidebarContent />
+        {/* [FIX] Panggil SidebarWithLogic dengan state desktop */}
+        <SidebarWithLogic isCollapsed={isSidebarCollapsed} />
       </aside>
 
       {/* --- SIDEBAR MOBILE --- */}
@@ -147,9 +228,8 @@ function AdminLayout() {
           isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
-        {" "}
-        {/* [FIX] */}
-        <SidebarContent />
+        {/* [FIX] Panggil SidebarWithLogic dengan 'isCollapsed={false}' */}
+        <SidebarWithLogic isCollapsed={false} />
       </aside>
       {isMobileSidebarOpen && (
         <div
@@ -158,11 +238,10 @@ function AdminLayout() {
         ></div>
       )}
 
-      <div className="flex-1 flex flex-col overflow-x-hidden">
+      {/* [FIX] Wrapper konten jadi 'h-full overflow-y-hidden' */}
+      <div className="flex-1 flex flex-col h-full overflow-y-hidden">
         {/* --- HEADER ATAS --- */}
-        <header className="h-16 flex items-center justify-between lg:justify-end px-6 bg-card/80 backdrop-blur-sm border-b sticky top-0 z-20">
-          {" "}
-          {/* [FIX] */}
+        <header className="h-16 flex-shrink-0 flex items-center justify-between lg:justify-end px-6 bg-card/80 backdrop-blur-sm border-b sticky top-0 z-20">
           <div className="flex items-center gap-4">
             <Button
               variant="ghost"
@@ -172,8 +251,7 @@ function AdminLayout() {
             >
               <Menu size={20} />
             </Button>
-            <h2 className="font-bold text-lg lg:hidden">{pageTitle}</h2>{" "}
-            {/* [FIX] */}
+            <h2 className="font-bold text-lg lg:hidden">{pageTitle}</h2>
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -186,8 +264,7 @@ function AdminLayout() {
                   <p className="text-sm font-semibold">{authState.full_name}</p>
                   <p className="text-xs text-muted-foreground capitalize">
                     {authState.role}
-                  </p>{" "}
-                  {/* [FIX] */}
+                  </p>
                 </div>
               </Button>
             </DropdownMenuTrigger>
@@ -210,8 +287,6 @@ function AdminLayout() {
                 onSelect={handleLogout}
                 className="text-destructive focus:bg-destructive/10 focus:text-destructive"
               >
-                {" "}
-                {/* [FIX] */}
                 <LogOut className="mr-2 h-4 w-4" />
                 <span>Logout</span>
               </DropdownMenuItem>
@@ -219,6 +294,7 @@ function AdminLayout() {
           </DropdownMenu>
         </header>
 
+        {/* [FIX] Konten <main> sekarang yang di-scroll */}
         <main className="flex-grow p-6 lg:p-8 overflow-y-auto">
           <Outlet />
         </main>
