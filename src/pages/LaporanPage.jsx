@@ -451,20 +451,21 @@ function LaporanPage() {
               </Select>
             </div>
           </div>
-          {/* <div className="mt-4 flex justify-end">
-            {/* <Button
-              onClick={handleDownloadCSV} 
-              disabled={loading || loadingCSV || !reportData} 
-            >
-            
-              {loadingCSV ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Download className="mr-2 h-4 w-4" />
-              )}
-              Download CSV
-            </Button> */}
-          </div> */}
+         {/*
+<div className="mt-4 flex justify-end">
+  <Button
+    onClick={handleDownloadCSV}
+    disabled={loading || loadingCSV || !reportData}
+  >
+    {loadingCSV ? (
+      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+    ) : (
+      <Download className="mr-2 h-4 w-4" />
+    )}
+    Download CSV
+  </Button>
+</div>
+*/}
         </CardContent>
       </Card>
 
