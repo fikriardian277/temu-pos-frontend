@@ -456,6 +456,7 @@ function LaporanPage() {
               onClick={handleDownloadCSV} 
               disabled={loading || loadingCSV || !reportData} 
             >
+            
               {loadingCSV ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
