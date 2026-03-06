@@ -451,7 +451,7 @@ function LaporanPage() {
               </Select>
             </div>
           </div>
-          <div className="mt-4 flex justify-end">
+          {/* <div className="mt-4 flex justify-end">
             {/* <Button
               onClick={handleDownloadCSV} 
               disabled={loading || loadingCSV || !reportData} 
@@ -463,7 +463,7 @@ function LaporanPage() {
               )}
               Download CSV
             </Button> */}
-          </div>
+          </div> */}
         </CardContent>
       </Card>
 
