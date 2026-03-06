@@ -452,9 +452,9 @@ function LaporanPage() {
             </div>
           </div>
           <div className="mt-4 flex justify-end">
-            <Button
-              onClick={handleDownloadCSV} // <-- Fungsi yang akan kita buat
-              disabled={loading || loadingCSV || !reportData} // <-- Disable saat loading atau data kosong
+            {/* <Button
+              onClick={handleDownloadCSV} 
+              disabled={loading || loadingCSV || !reportData} 
             >
               {loadingCSV ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -462,7 +462,7 @@ function LaporanPage() {
                 <Download className="mr-2 h-4 w-4" />
               )}
               Download CSV
-            </Button>
+            </Button> */}
           </div>
         </CardContent>
       </Card>
